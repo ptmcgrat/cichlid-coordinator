@@ -1,0 +1,330 @@
+# Every organism the project uses, its role, and which methods use it (see docs/species_final.md).
+# `cichlid-data catalog build` combines this with species.tsv (what Stage 1 downloads),
+# compara_panel.tsv (Compara's reference panel) and what is on disk, into catalog.json.
+#
+# role:   project    orthology calls are made for it (a query in every method)
+#         relative   cichlids' relatives, for placing duplications (Ovalentaria)
+#         reference  reference species across fish and vertebrate evolution
+#         outgroup   roots the vertebrates
+#         candidate  not used yet (no annotation, or to be checked)
+# source: where its proteins come from: ncbi_refseq | authors | ensembl
+# Accessions are filled in once looked up (orthofinder_species.md has the lookup command).
+
+[methods.TreeFam2026]
+description = "TreeFam 9 families and trees; project species placed as queries; references fixed (109 genomes)"
+queries = "project"
+
+[methods.Compara2026]
+description = "Ensembl Compara 116 trees, pruned to compara_panel.tsv; project species placed as queries"
+queries = "project"
+reference_panel = "compara_panel.tsv"
+
+[methods.OrthoFinder2026]
+description = "Families and trees built de novo from these proteomes"
+species = ["Esur", "Acen", "Pmar", "Onil", "Nbri", "Pmic", "Sdia", "Hbur", "Mzeb", "Acal", "Bspl", "Gacu",
+           "Olat", "Nfur", "Fhet", "Pret", "Xmac", "Aoce",
+           "Trub", "Gmor", "Eluc", "Char", "Drer", "Amex", "Pkin", "Aang",
+           "Locu", "Ecal", "Hsap", "Mmus", "Ggal", "Xtro", "Lcha", "Cmil", "Bflo"]
+
+# ---------------------------------------------------------------- project species
+[[organism]]
+prefix = "Esur"
+species = "Etroplus suratensis"
+role = "project"
+lineage = "Cichlidae: Etroplinae"
+source = "authors"
+
+[[organism]]
+prefix = "Acen"
+species = "Archocentrus centrarchus"
+role = "project"
+lineage = "Cichlidae: Cichlinae (Heroini)"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Pmar"
+species = "Pelmatolapia mariae"
+role = "project"
+lineage = "Cichlidae: Pseudocrenilabrinae (Pelmatolapiini)"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Onil"
+species = "Oreochromis niloticus"
+common = "Nile tilapia"
+role = "project"
+lineage = "Cichlidae: Pseudocrenilabrinae (Oreochromini)"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Nbri"
+species = "Neolamprologus brichardi"
+role = "project"
+lineage = "Cichlidae: Lake Tanganyika (Lamprologini)"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Pmic"
+species = "Perissodus microlepis"
+role = "project"
+lineage = "Cichlidae: Lake Tanganyika (Perissodini)"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Sdia"
+species = "Simochromis diagramma"
+role = "project"
+lineage = "Cichlidae: Lake Tanganyika (Tropheini)"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Hbur"
+species = "Haplochromis burtoni"
+role = "project"
+lineage = "Cichlidae: Haplochromini"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Mzeb"
+species = "Maylandia zebra"
+role = "project"
+lineage = "Cichlidae: Lake Malawi (mbuna)"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Acal"
+species = "Astatotilapia calliptera"
+role = "project"
+lineage = "Cichlidae: Lake Malawi"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Bspl"
+species = "Betta splendens"
+common = "betta"
+role = "project"
+lineage = "Percomorpha: Anabantaria"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Gacu"
+species = "Gasterosteus aculeatus"
+common = "three-spined stickleback"
+role = "project"
+lineage = "Percomorpha: Eupercaria"
+source = "ncbi_refseq"
+
+# ---------------------------------------------------------------- relatives (Ovalentaria)
+[[organism]]
+prefix = "Olat"
+species = "Oryzias latipes"
+common = "medaka"
+role = "relative"
+lineage = "Ovalentaria: Beloniformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Nfur"
+species = "Nothobranchius furzeri"
+common = "turquoise killifish"
+role = "relative"
+lineage = "Ovalentaria: Cyprinodontiformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Fhet"
+species = "Fundulus heteroclitus"
+common = "mummichog"
+role = "relative"
+lineage = "Ovalentaria: Cyprinodontiformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Pret"
+species = "Poecilia reticulata"
+common = "guppy"
+role = "relative"
+lineage = "Ovalentaria: Cyprinodontiformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Xmac"
+species = "Xiphophorus maculatus"
+common = "platyfish"
+role = "relative"
+lineage = "Ovalentaria: Cyprinodontiformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Aoce"
+species = "Amphiprion ocellaris"
+common = "clownfish"
+role = "relative"
+lineage = "Ovalentaria: Pomacentridae"
+source = "ncbi_refseq"
+
+# ---------------------------------------------------------------- references
+[[organism]]
+prefix = "Trub"
+species = "Takifugu rubripes"
+common = "fugu"
+role = "reference"
+lineage = "Percomorpha: Eupercaria"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Gmor"
+species = "Gadus morhua"
+common = "Atlantic cod"
+role = "reference"
+lineage = "Teleostei: Gadiformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Eluc"
+species = "Esox lucius"
+common = "northern pike"
+role = "reference"
+lineage = "Teleostei: Esociformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Char"
+species = "Clupea harengus"
+common = "Atlantic herring"
+role = "reference"
+lineage = "Teleostei: Clupeiformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Drer"
+species = "Danio rerio"
+common = "zebrafish"
+role = "reference"
+lineage = "Teleostei: Cypriniformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Amex"
+species = "Astyanax mexicanus"
+common = "Mexican cavefish"
+role = "reference"
+lineage = "Teleostei: Characiformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Pkin"
+species = "Paramormyrops kingsleyae"
+common = "elephantfish"
+role = "reference"
+lineage = "Teleostei: Osteoglossomorpha"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Aang"
+species = "Anguilla anguilla"
+common = "European eel"
+role = "reference"
+lineage = "Teleostei: Elopomorpha"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Locu"
+species = "Lepisosteus oculatus"
+common = "spotted gar"
+role = "reference"
+lineage = "Holostei"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Ecal"
+species = "Erpetoichthys calabaricus"
+common = "reedfish"
+role = "reference"
+lineage = "Polypteriformes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Hsap"
+species = "Homo sapiens"
+common = "human"
+role = "reference"
+lineage = "Mammalia"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Mmus"
+species = "Mus musculus"
+common = "mouse"
+role = "reference"
+lineage = "Mammalia"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Ggal"
+species = "Gallus gallus"
+common = "chicken"
+role = "reference"
+lineage = "Aves"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Xtro"
+species = "Xenopus tropicalis"
+common = "western clawed frog"
+role = "reference"
+lineage = "Amphibia"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Lcha"
+species = "Latimeria chalumnae"
+common = "coelacanth"
+role = "reference"
+lineage = "Sarcopterygii: Actinistia"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Cmil"
+species = "Callorhinchus milii"
+common = "elephant shark"
+role = "reference"
+lineage = "Chondrichthyes"
+source = "ncbi_refseq"
+
+[[organism]]
+prefix = "Bflo"
+species = "Branchiostoma floridae"
+common = "amphioxus"
+role = "outgroup"
+lineage = "Cephalochordata"
+source = "ncbi_refseq"
+
+# ---------------------------------------------------------------- candidates
+[[organism]]
+prefix = "Amca"
+species = "Amia calva"
+common = "bowfin"
+role = "candidate"
+lineage = "Holostei"
+source = "ncbi_refseq"
+notes = "joins OrthoFinder if a RefSeq annotation exists"
+
+[[organism]]
+prefix = "Acit"
+species = "Amphilophus citrinellus"
+common = "Midas cichlid"
+role = "candidate"
+lineage = "Cichlidae: Cichlinae (Heroini)"
+source = "ensembl"
+notes = "in the Compara trees as Ensembl reference genes; joins OrthoFinder if its annotation is good enough"
+
+[[organism]]
+prefix = "Plst"
+species = "Pholidichthys leucotaenia"
+common = "convict blenny"
+role = "candidate"
+lineage = "Pholidichthyidae (sister family of cichlids)"
+source = "ncbi_genbank"
+accession = "GCA_020510985.1"
+notes = "unannotated; candidate for an NCBI annotation request"

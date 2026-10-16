@@ -8,6 +8,7 @@
     cichlid-data pull PATTERN... [--force] [--dry-run]
     cichlid-data push PATTERN... [--force] [--dry-run]
     cichlid-data ensure RELATIVE_PATH
+    cichlid-data catalog build|show|missing|validate # the species catalog (--method, --role)
     cichlid-data provenance write|check|show        # source records for every input
     cichlid-data migrate [--apply] [--cleanup]       # moves the inputs to the new layout
 
@@ -70,6 +71,10 @@ def main(argv=None, backend=None, settings=None):
         p.add_argument("--dry-run", action="store_true")
     p = sub.add_parser("ensure")
     p.add_argument("path")
+    p = sub.add_parser("catalog", help="the species catalog")
+    p.add_argument("action", choices=["build", "show", "missing", "validate"])
+    p.add_argument("--method")
+    p.add_argument("--role")
     p = sub.add_parser("provenance", help="source records for every input")
     p.add_argument("action", choices=["write", "check", "show"])
     p.add_argument("path", nargs="?", help="show: a folder relative to the data root")
@@ -101,6 +106,43 @@ def main(argv=None, backend=None, settings=None):
         except IndexError:
             sys.exit(f"`where {args.kind}` needs an argument (e.g. a species prefix or name)")
         print(p.cloud if args.cloud else p.local)
+        return 0
+    if args.cmd == "catalog":
+        from .catalog import Catalog
+        if args.action == "build":
+            C = Catalog.build(L)
+            errors, warnings = C.validate()
+            for w in warnings:
+                print(f"  warning: {w}")
+            if errors:
+                sys.exit("catalog not written:\n  " + "\n  ".join(errors))
+            path = C.write(L)
+            ready = sum(s.status == "proteome ready" for s in C.organisms.values())
+            print(f"Wrote {path}: {len(C.organisms)} organisms ({ready} with proteomes ready); methods: " +
+                  ", ".join(f"{n} {len(m['species'])}" for n, m in C.methods.items()))
+            return 0
+        C = Catalog.build(L) if args.action == "validate" else Catalog.load(L)
+        if args.action == "validate":
+            errors, warnings = C.validate()
+            for w in warnings:
+                print(f"  warning: {w}")
+            for e in errors:
+                print(f"  ERROR: {e}")
+            print("catalog configuration is valid" if not errors else "")
+            if errors:
+                sys.exit(1)
+        elif args.action == "missing":
+            if not args.method:
+                sys.exit("catalog missing needs --method, e.g. --method OrthoFinder2026")
+            miss = C.missing(args.method)
+            print(f"{args.method}: {len(C.species(method=args.method)) - len(miss)} of "
+                  f"{len(C.species(method=args.method))} proteomes ready; missing:")
+            for s in miss:
+                print(f"  {s.prefix:<6} {s.species:<30} {s.status:<18} {'in species.tsv' if s.in_manifest else 'not in species.tsv'}")
+        else:
+            for s in C.species(method=args.method, role=args.role):
+                print(f"  {s.prefix:<6} {s.species:<30} {s.role:<10} {s.status:<18} {s.accession:<18} "
+                      f"{s.counts.get('proteins', '')!s:>7}  {','.join(s.used_by)}")
         return 0
     if args.cmd == "provenance":
         import json as _json

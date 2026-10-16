@@ -33,15 +33,16 @@ cichlid-data push results/Compara2026/orthology
 cichlid-data migrate              # dry run of moving the inputs to the new layout; --apply to do it
 ```
 
-## Status (v0.2.2)
+## Status (v0.3.0)
 
 Done: configuration, layout, data units, transfers (rclone and a local test backend; fingerprints,
 conflict detection, immutable units, locks, transfer log), the layout migration (applied on mzebra),
-provenance records (`config/sources.toml`, `cichlid-data provenance write|check|show`), and the
+provenance records (`config/sources.toml`, `cichlid-data provenance write|check|show`), the species
+catalog (`config/species_sets.toml`, `cichlid-data catalog build|show|missing|validate`), and the
 command line.
 
-Next: catalog (`config/species_sets.toml`), file-format schemas, proteomes (from the pipeline's
-Stage 2), and the downloaders (from Stage 1, the Compara preparation and the download scripts).
+Next: file-format schemas, proteomes (from the pipeline's Stage 2), and the downloaders (from
+Stage 1, the Compara preparation and the download scripts).
 
 ## Tests
 

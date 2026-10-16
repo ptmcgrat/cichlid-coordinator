@@ -56,7 +56,9 @@ from pathlib import Path  # noqa: E402
 
 RECORD = "source.json"
 STAGE1_RECORD = "download.json"
-SKIP = {RECORD, STAGE1_RECORD, ".DS_Store"}
+# bookkeeping files, never part of an inventory (assembly_report.json is NCBI metadata Stage 1
+# fetches separately and writes beside the download)
+SKIP = {RECORD, STAGE1_RECORD, "assembly_report.json", ".DS_Store"}
 
 
 @dataclass

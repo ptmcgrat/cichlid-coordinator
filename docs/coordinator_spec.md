@@ -133,11 +133,19 @@ Every transfer is logged (`<root>/.cichlid-data/transfers.log`: time, user, host
 
 ### Catalog and Species (`catalog.py`)
 
-`Catalog.build()` writes `catalog.json` from `species.tsv`, `species_sets.toml` and the download records; `Catalog.load()` reads it.
+Three configuration files, each with one job:
 
-`Species` fields: `prefix`, `species`, `taxon_id`, `role` (`project`, `relative`, `reference`, `outgroup`), `source` (a `SourceRecord`), `files` (proteome, genes table, with checksums), `counts` (genes, proteins), `used_by` (method names).
+- `config/species.tsv`: what Stage 1 downloads (the download manifest).
+- `config/species_sets.toml`: every organism the project uses (prefix, name, role, lineage, source; roles `project`, `relative`, `reference`, `outgroup`, `candidate`) and each method's species: `queries = "project"` for TreeFam and Compara, an explicit list for OrthoFinder.
+- `config/compara_panel.tsv`: Compara's reference panel.
 
-Queries: `catalog.species(role=..., method=...)`, `catalog[prefix]`.
+`Catalog.build(layout)` combines them with what is on disk into `catalog.json`; `Catalog.load(layout)` reads it.
+
+`Species` fields: `prefix`, `species`, `common`, `role`, `lineage`, `source`, `accession`, `version`, `retrieved`, `in_manifest`, `status` (`proteome ready`, `downloaded`, `local source only`, `not downloaded`), `proteome`, `genes_table`, `proteome_md5`, `counts` (proteins, genes), `used_by` (method names), `notes`.
+
+Queries: `catalog.species(method=..., role=..., status=...)`, `catalog.missing(method)` (organisms whose proteome is not ready), `catalog[prefix]`. `validate()` returns errors (bad prefixes, unknown roles, method members without an entry or still candidates) and warnings (project species not in `species.tsv`).
+
+Commands: `cichlid-data catalog build | show | missing | validate`, with `--method` and `--role`.
 
 ### SourceRecord (`provenance.py`)
 

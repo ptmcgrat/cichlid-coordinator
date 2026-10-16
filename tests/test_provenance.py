@@ -32,6 +32,7 @@ class TestProvenance(unittest.TestCase):
                          ("Maylandia zebra", "ncbi_refseq", "GCF_041146795.1", "Mzebra_GT3a", "2026-10-07T12:00:00+00:00"))
         self.assertEqual(r.files, {"protein.faa": {"bytes": 1, "md5": "abc"}})
         self.assertIn("GCF_041146795.1", r.url)
+        write(d / "assembly_report.json", "{}")                                    # Stage 1 bookkeeping
         self.assertEqual(verify(d, r), [])
 
     def test_other_download_json_is_not_a_record(self):
