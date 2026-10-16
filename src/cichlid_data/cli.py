@@ -8,6 +8,7 @@
     cichlid-data pull PATTERN... [--force] [--dry-run]
     cichlid-data push PATTERN... [--force] [--dry-run]
     cichlid-data ensure RELATIVE_PATH
+    cichlid-data validate PATH... [--kind K]        # check files against their schemas
     cichlid-data catalog build|show|missing|validate # the species catalog (--method, --role)
     cichlid-data provenance write|check|show        # source records for every input
     cichlid-data migrate [--apply] [--cleanup]       # moves the inputs to the new layout
@@ -71,6 +72,10 @@ def main(argv=None, backend=None, settings=None):
         p.add_argument("--dry-run", action="store_true")
     p = sub.add_parser("ensure")
     p.add_argument("path")
+    p = sub.add_parser("validate", help="check files against their schemas")
+    p.add_argument("paths", nargs="+")
+    p.add_argument("--kind", choices=["genes", "assign", "orthologs", "proteome", "run", "family"])
+    p.add_argument("--prefix")
     p = sub.add_parser("catalog", help="the species catalog")
     p.add_argument("action", choices=["build", "show", "missing", "validate"])
     p.add_argument("--method")
@@ -106,6 +111,21 @@ def main(argv=None, backend=None, settings=None):
         except IndexError:
             sys.exit(f"`where {args.kind}` needs an argument (e.g. a species prefix or name)")
         print(p.cloud if args.cloud else p.local)
+        return 0
+    if args.cmd == "validate":
+        from .schemas import SchemaError, validate as _validate
+        failed = 0
+        for path in args.paths:
+            try:
+                problems = _validate(path, kind=args.kind, prefix=args.prefix)
+            except (SchemaError, OSError) as e:
+                problems = [str(e)]
+            failed += bool(problems)
+            print(f"{path}: " + ("ok" if not problems else f"{len(problems)} problem(s)"))
+            for pr in problems[:10]:
+                print(f"    {pr}")
+        if failed:
+            sys.exit(f"{failed} of {len(args.paths)} failed validation")
         return 0
     if args.cmd == "catalog":
         from .catalog import Catalog

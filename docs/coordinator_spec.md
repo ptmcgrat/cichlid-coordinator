@@ -174,10 +174,16 @@ One module per boundary file, each with a `read()`, a `write()` and a `validate(
 | Genes table `<prefix>.genes.tsv` | `gene_id, ncbi_gene_id, annotation_gene_key, symbol, description, biotype, seqid, start, end, strand, mitochondrial, n_transcripts, n_proteins, chosen_protein, chosen_transcript, protein_length, partial, low_quality, residues_replaced, internal_stops, product` |
 | Assignment `<prefix>.assign.tsv` | `gene_id, protein_length, best_family, score, evalue, protein_coverage, family_coverage, protein_region, n_families, second_family, second_score, fusion_partner, fusion_partner_score, fusion_partner_region, fusion_partner_family_coverage, flags` |
 | Family folder `families/<family>/` | `tree.nwk` (final tree, leaf names = gene IDs or reference protein IDs), the alignment, `done.json` (inputs hash) |
-| Orthology calls `<prefix>.orthologs.tsv` | Gene columns `gene_id, ncbi_gene_id, ncbi_symbol, ncbi_description, seqid, start, end, strand, mitochondrial, protein, protein_length, treefam_family, tree_mode, placement_status, placement_lwr`; then, for each reference (`human`, `zebrafish`, `mouse`), the block `<ref>_relationship, <ref>_ortholog_type, <ref>_symbol, <ref>_official_id, <ref>_ensembl_gene, <ref>_treefam_protein, <ref>_description, <ref>_name_status, <ref>_ref_in_subtree, <ref>_own_species_in_subtree, <ref>_median_cichlid_copies, <ref>_distance, <ref>_call_support`; then `human_uniprot, ncbi_symbol_agrees, confidence, caveats` |
+| Orthology calls `<prefix>.orthologs.tsv` | Gene columns `gene_id, ncbi_gene_id, ncbi_symbol, ncbi_description, seqid, start, end, strand, mitochondrial, protein, protein_length, treefam_family, tree_mode, placement_status, placement_lwr`; then, for each reference (`human`, `mouse`, `zebrafish`, in that order), the block `<ref>_relationship, <ref>_ortholog_type, <ref>_symbol, <ref>_official_id, <ref>_ensembl_gene, <ref>_treefam_protein, <ref>_description, <ref>_name_status, <ref>_ref_in_subtree, <ref>_own_species_in_subtree, <ref>_median_cichlid_copies, <ref>_distance, <ref>_call_support`; then `human_uniprot, ncbi_symbol_agrees, confidence, caveats` |
 | Run record `run.json` | `method, method_version, parameters, started, finished, coordinator_version, catalog_md5, species` |
 
 Allowed values: `relationship` in {`Ortholog`, `Paralog`, `NoHomolog`}; `ortholog_type` in {`OneToOne`, `OneToTwo`, `OneToMany`, empty}; `confidence` in {`high`, `medium`, `low`}.
+
+Booleans are written `True`/`False`; empty strings mean missing. Duplicate gene IDs within a species get a suffix (`Mzeb_101467881.2`), which the ID rules allow. The proteome check also cross-checks the genes table beside it: every gene with a chosen protein has exactly one protein, and vice versa. The orthology schema accepts any set of references, in blocks, so a method calling orthologs to other species stays valid. Stage 7's combined calls are a comparison output and are not yet specified (the comparison is being redesigned).
+
+The schemas were checked against files written by the pipeline's own Stage 2, 3 and 6 code: all valid.
+
+`cichlid-data validate PATH...` checks files (the kind is inferred from the name, or given with `--kind`).
 
 A schema change is a version change of the package (Section 8).
 
