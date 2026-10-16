@@ -98,7 +98,7 @@ class TestProvenance(unittest.TestCase):
 
     def test_repository_sources_file(self):
         entries = load_sources(config_dir() / "sources.toml")
-        self.assertGreaterEqual(len(entries), 12)
+        self.assertGreaterEqual(len(entries), 14)
         for e in entries:
             self.assertTrue(e["path"] and e["name"], e)
             SourceRecord.from_dict({k: v for k, v in e.items() if k != "path"})      # every field is known

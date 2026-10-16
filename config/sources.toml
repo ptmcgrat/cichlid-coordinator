@@ -39,6 +39,13 @@ licence = "to confirm (pantherdb.org)"
 citation = "Thomas PD et al. (2022) PANTHER: Making genome-scale phylogenetics accessible to all. Protein Sci 31:8-22"
 
 [[source]]
+path = "Inputs/Annotations/Legacy2018"
+name = "The 2018 resource's Ensembl name tables (HumanEnsDescriptions.txt, ZebraEnsDescriptions.txt, ENS2allIDs.tab)"
+type = "project"
+notes = "Ensembl BioMart exports made for the 2018 resource; used for reference-gene names (pipeline stage 6a)"
+citation = "Ramakrishnan Varadarajan A, Mopuri R, Streelman JT, McGrath PT (2018) Genome-wide protein phylogenies for four African cichlid species. BMC Evol Biol 18:1"
+
+[[source]]
 path = "Inputs/Expression/HPA"
 name = "Human Protein Atlas: single cell type RNA data"
 type = "url"
@@ -69,6 +76,12 @@ type = "url"
 url = "https://daniocell.nichd.nih.gov/"
 licence = "to confirm"
 citation = "Sur A et al. (2023) Single-cell analysis of shared signatures and transcriptional diversity during zebrafish development. Dev Cell (to confirm volume and pages)"
+
+[[source]]
+path = "Inputs/Expression/raw"
+name = "Raw single-cell data behind the Zebrahub and Daniocell summaries (h5ad files; Seurat object and its export)"
+type = "url"
+notes = "Inputs to summarize_h5ad.py; see the Zebrahub and Daniocell entries for sources, licences and citations"
 
 [[source]]
 path = "Inputs/Expression/Brawand"
