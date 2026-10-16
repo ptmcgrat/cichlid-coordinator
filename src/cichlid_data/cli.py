@@ -8,7 +8,7 @@
     cichlid-data pull PATTERN... [--force] [--dry-run]
     cichlid-data push PATTERN... [--force] [--dry-run]
     cichlid-data ensure RELATIVE_PATH
-    cichlid-data migrate [--apply] [--cleanup]
+    cichlid-data migrate [--apply] [--cleanup]       # moves the inputs to the new layout
 
 PATTERN is a unit name or a glob over unit names, e.g. "results/Compara2026/*".
 """

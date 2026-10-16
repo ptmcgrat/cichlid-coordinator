@@ -22,7 +22,8 @@ def old_layout(root, cloud):
              "Rebuild2026/treefam/Mzeb.treefam.tsv", "Rebuild2026/families/TF101001/tree.nwk",
              "Rebuild2026/orthology/Mzeb.orthologs.tsv", "Compara2026/treefam/Mzeb.treefam.tsv",
              "Compara2026/families/C116_012345/tree.nwk", "Combined2026/site/site.sqlite",
-             "Combined2026/analysis/tissues/summary.tsv"]
+             "Combined2026/analysis/tissues/summary.tsv", "Combined2026/analysis/teleost_copies.tsv",
+             "Combined2026/analysis/teleost_copies.png", "Data/Species/legacy2018.txt"]
     for f in files:
         write(root / f, f)
     # cloud: inputs copied as they are, the TreeFam trees as a tar
@@ -57,14 +58,23 @@ class TestMigration(unittest.TestCase):
     def tearDown(self):
         self.e.close()
 
-    def test_dry_run_changes_nothing(self):
+    def test_dry_run_changes_nothing_and_reports(self):
         before = sorted(str(p) for p in self.e.cloud.rglob("*"))
         out = []
-        steps, repush = Migration(self.e.a, self.e.store(self.e.a).backend).run(lambda: None, apply=False, say=out.append)
-        self.assertTrue(any("cloud move  Rebuild2026/families/TF101.tar -> Results/TreeFam2026/families/TF101.tar"
-                            in s.replace("  ", " ").replace("would ", "") or "TF101.tar" in s for s in out))
+        Migration(self.e.a, self.e.store(self.e.a).backend).run(lambda: None, apply=False, say=out.append)
+        import re
+        text = re.sub(r" +", " ", "\n".join(out))
         self.assertEqual(sorted(str(p) for p in self.e.cloud.rglob("*")), before)
         self.assertTrue((self.e.a.local_root / "Rebuild2026/genomes").is_dir())
+        self.assertIn("cloud move Rebuild2026/proteomes.tar -> Inputs/Proteins/proteomes.tar", text)
+        design = text.split("Left in place by design")[1].split("Not moved and not expected")[0]
+        unexpected = text.split("Not moved and not expected")[1]
+        for item in ("local Rebuild2026/", "cloud Rebuild2026/", "local Compara2026/", "local Combined2026/",
+                     "local Data/Blumer2025/coding/", "cloud Data/Blumer2025/inversions/"):
+            self.assertIn(item, design, item)
+        self.assertIn("local Data/Species/", unexpected)
+        for absent in ("Results/", "Analyses/", "families/TF101.tar ->", "treefam"):
+            self.assertNotIn(absent, text.split("Left in place")[0], absent)
 
     def test_apply(self):
         a, cloud = self.e.a, self.e.cloud
@@ -76,33 +86,31 @@ class TestMigration(unittest.TestCase):
                     "Inputs/Families/Compara116/dumps/Compara.116.protein_default.aa.fasta.gz",
                     "Inputs/Families/Compara116/prepared/trees/C1.nhx", "Inputs/Annotations/GO/go-basic.obo",
                     "Inputs/Expression/HPA/x.tsv", "Inputs/Populations/Blumer2025/chr10.vcf.gz",
-                    "Analyses/Variants/coding/coding_snps.tsv.gz", "Inputs/Proteins/downloads/Mzeb/protein.faa",
-                    "Inputs/Proteins/proteomes/Mzeb.faa", "Results/TreeFam2026/assign/Mzeb.assign.tsv",
-                    "Results/Compara2026/assign/Mzeb.assign.tsv", "Results/TreeFam2026/families/TF101001/tree.nwk",
-                    "Results/Combined2026/site/site.sqlite", "Analyses/tissues/summary.tsv"):
+                    "Inputs/Proteins/downloads/Mzeb/protein.faa", "Inputs/Proteins/proteomes/Mzeb.faa"):
             self.assertTrue((r / rel).is_file(), rel)
-        self.assertFalse((r / "Data/Blumer2025/coding").exists())
-        # cloud: moved server-side, or repacked and pushed
-        for rel in ("Inputs/Families/TreeFam9/hmm/TreeFam9", "Inputs/Proteins/proteomes.tar",
-                    "Inputs/Families/Compara116/prepared.tar", "Results/TreeFam2026/families/TF101.tar",
-                    "Results/TreeFam2026/orthology.tar", "Results/Combined2026/site.tar",
-                    "Inputs/Populations/Blumer2025/chr10.vcf.gz", "Analyses/Variants/coding/coding_snps.tsv.gz",
-                    "Inputs/Proteins/downloads/Mzeb.tar", "Results/TreeFam2026/assign.tar",
-                    "Results/Compara2026/assign.tar", "Inputs/Families/TreeFam9/trees.tar", "Analyses/tissues.tar"):
+        # all results left exactly where they were, locally and in the cloud
+        for rel in ("Rebuild2026/treefam/Mzeb.treefam.tsv", "Rebuild2026/families/TF101001/tree.nwk",
+                    "Rebuild2026/orthology/Mzeb.orthologs.tsv", "Compara2026/treefam/Mzeb.treefam.tsv",
+                    "Combined2026/site/site.sqlite", "Combined2026/analysis/tissues/summary.tsv",
+                    "Data/Blumer2025/coding/coding_snps.tsv.gz", "Data/Blumer2025/inversions/x.tsv"):
+            self.assertTrue((r / rel).is_file(), rel)
+        for rel in ("Rebuild2026/families/TF101.tar", "Rebuild2026/treefam.tar", "Rebuild2026/orthology.tar",
+                    "Compara2026/treefam.tar", "Combined2026/site.tar", "Rebuild2026/index.json"):
             self.assertTrue((cloud / rel).is_file(), rel)
-        for gone in ("Rebuild2026/genomes.tar", "Rebuild2026/treefam.tar", "Data/OriginalTreeFiles.tar"):
-            self.assertFalse((cloud / gone).exists(), gone)                         # --cleanup
-        # moved units are in sync straight away, with their old fingerprints
-        st = {k: s for k, s, _ in self.e.store(a).status("*")}
-        for k in ("proteins/proteomes", "results/TreeFam2026/families/TF101", "results/TreeFam2026/orthology",
-                  "results/Combined2026/site", "proteins/downloads/Mzeb", "results/TreeFam2026/assign"):
-            self.assertEqual(st.get(k), "in sync", k)
-        # a second machine can pull the new layout
+        self.assertFalse((r / "Results").exists())
+        self.assertFalse((r / "Analyses").exists())
+        # inputs in the cloud: moved server-side or repacked; old repacked tars removed by --cleanup
+        for rel in ("Inputs/Families/TreeFam9/hmm/TreeFam9", "Inputs/Proteins/proteomes.tar",
+                    "Inputs/Families/Compara116/prepared.tar", "Inputs/Populations/Blumer2025/chr10.vcf.gz",
+                    "Inputs/Proteins/downloads/Mzeb.tar", "Inputs/Families/TreeFam9/trees.tar"):
+            self.assertTrue((cloud / rel).is_file(), rel)
+        for gone in ("Rebuild2026/genomes.tar", "Data/OriginalTreeFiles.tar", "Rebuild2026/proteomes.tar"):
+            self.assertFalse((cloud / gone).exists(), gone)
+        st = {k: s for k, s, _ in self.e.store(a).status("proteins/*")}
+        self.assertEqual((st["proteins/proteomes"], st["proteins/downloads/Mzeb"]), ("in sync", "in sync"))
         b = self.e.b
-        self.e.store(b).pull("results/TreeFam2026/*")
-        self.assertTrue((b.local_root / "Results/TreeFam2026/families/TF101001/tree.nwk").is_file())
-        self.assertTrue((b.local_root / "Results/TreeFam2026/assign/Mzeb.assign.tsv").is_file())
-        # running it again finds nothing to do
+        self.e.store(b).pull("proteins/*")
+        self.assertTrue(b.proteome("Mzeb").local.is_file())
         out = []
         Migration(a, backend).run(lambda: self.e.store(a), apply=True, say=out.append)
         self.assertIn("Nothing to migrate", out[0])

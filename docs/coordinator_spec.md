@@ -202,30 +202,28 @@ cichlid-data migrate --dry-run | --apply
 
 ## 6. Migration from the current layout
 
-`migrate.py` moves the existing data on the local machine, and on the cloud by server-side moves (no re-upload), printing every move in a dry run first:
+`migrate.py` moves the project's **inputs** to the new layout, on the local machine and on the cloud by server-side moves (no re-upload), printing every move in a dry run first. **Results are not moved:** the TreeFam and Compara runs will be redone with the new species set (adding species changes nearly every family, so little would be reused), and the comparisons and analyses will be redone with new methods. The old results stay where they are, for comparison.
 
 | Current | New |
 |---|---|
-| `Rebuild2026/genomes/<p>/` | `Inputs/Proteins/downloads/<p>/` |
+| `Rebuild2026/genomes/<p>/` | `Inputs/Proteins/downloads/<p>/` (repacked: one shard per species) |
 | `Rebuild2026/proteomes/` | `Inputs/Proteins/proteomes/` |
-| `Data/hmm_lib/`, `Data/OriginalTreeFiles/`, `Data/protein_to_species.txt` | `Inputs/Families/TreeFam9/` |
-| `Data/Compara116/` | `Inputs/Families/Compara116/` |
-| `Data/Annotations/`, legacy annotation files | `Inputs/Annotations/` |
+| `Data/hmm_lib/`, `Data/OriginalTreeFiles/`, `Data/protein_to_species.txt` | `Inputs/Families/TreeFam9/hmm/`, `trees/`, `protein_to_species.txt` |
+| `Data/Compara116/` | `Inputs/Families/Compara116/` (`dumps/`, `prepared/`) |
+| `Data/Annotations/` | `Inputs/Annotations/` |
 | `Data/Expression/` | `Inputs/Expression/` |
-| `Data/Blumer2025/` (inputs) | `Inputs/Populations/Blumer2025/` |
-| `Data/Blumer2025/{coding,inversions}/` (results) | `Analyses/Variants/` |
-| `Rebuild2026/` (other folders) | `Results/TreeFam2026/` |
-| `Compara2026/` | `Results/Compara2026/`, with `treefam/` renamed `assign/` |
-| `Combined2026/orthology`, `site` | `Results/Combined2026/` |
-| `Combined2026/analysis/*` | `Analyses/*` |
+| `Data/Blumer2025/` (VCFs, tables, reference) | `Inputs/Populations/Blumer2025/` |
+| `Data/Esur/` | `Inputs/Proteins/local_sources/Esur/` |
 
-It also writes `catalog.json` and a `source.json` for every input from the existing download records. After migration, a pipeline run must find all work done and skip it.
+**Left in place by design:** `Rebuild2026/`, `Compara2026/` and `Combined2026/` (phylogenies, calls, browser site, analyses), and `Data/Blumer2025/coding/` and `inversions/` (variant analyses).
+
+The dry run ends with two lists: what is left in place by design, and anything unexpected in `Data/`, so nothing is left behind silently. The proteomes' cloud index entry and sync state are carried over, so they are in sync immediately.
 
 ## 7. Acceptance criteria
 
 1. Every public method and CLI command has tests, all runnable offline against `LocalBackend`.
 2. The existing tests of the moved code (Stages 1–2, local species preparation, sync, downloaders) pass in the new repository.
-3. `cichlid-data check` passes on `mzebra` after migration, and a full pipeline run afterwards skips all completed work.
+3. `cichlid-data check` passes on `mzebra` after migration, and the pipeline (updated to the coordinator's paths) runs from the migrated inputs.
 4. No other repository contains a hard-coded data path, an rclone call, or a download.
 5. Every file in `Inputs/` has a `source.json`, and `catalog.json` lists every species with its source and `used_by`.
 6. Every boundary file written by any repository passes `cichlid-data validate`.
