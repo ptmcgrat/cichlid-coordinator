@@ -31,6 +31,20 @@ class TestStoreThroughRclone(test_store.TestStore):
         B.delete("c/d.txt")
         self.assertIsNone(B.read_text("c/d.txt"))
 
+    def test_large_folder_move_falls_back_to_files(self):
+        os.environ["FAKE_CLOUD"] = str(self.e.cloud)
+        B = RcloneBackend("fake:", rclone=FAKE, retries=1)
+        for i in range(5):
+            B.write_text(f"Data/NewTreeFiles/sub/TF{i}.nex", f"tree {i}")
+        os.environ["FAKE_FAIL_MOVEDIR"] = "1"
+        try:
+            B.move("Data/NewTreeFiles", "Archive/Project2018/NewTreeFiles")
+        finally:
+            os.environ.pop("FAKE_FAIL_MOVEDIR")
+        self.assertEqual(B.read_text("Archive/Project2018/NewTreeFiles/sub/TF3.nex"), "tree 3")
+        self.assertEqual(len(B.list("Archive/Project2018/NewTreeFiles/sub")), 5)
+        self.assertNotIn("NewTreeFiles/", B.list("Data"))                       # source folder removed
+
 
 if __name__ == "__main__":
     unittest.main()

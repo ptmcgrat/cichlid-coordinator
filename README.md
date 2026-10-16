@@ -33,7 +33,7 @@ cichlid-data push results/Compara2026/orthology
 cichlid-data migrate              # dry run of moving the inputs to the new layout; --apply to do it
 ```
 
-## Status (v0.1.4)
+## Status (v0.1.5)
 
 Done: configuration, layout, data units, transfers (rclone and a local test backend; fingerprints,
 conflict detection, immutable units, locks, transfer log), the layout migration, and the command line.

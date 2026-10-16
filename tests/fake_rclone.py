@@ -46,9 +46,24 @@ elif cmd == "copy":
     else:
         sys.exit(3)
 elif cmd == "moveto":
+    src = p(rest[0])
+    if src.is_dir() and os.environ.get("FAKE_FAIL_MOVEDIR"):     # like Dropbox with too many files
+        sys.stderr.write("ERROR : Server side directory move failed: MoveDir failed:\n")
+        sys.exit(1)
     d = p(rest[1])
     d.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(p(rest[0])), str(d))
+    shutil.move(str(src), str(d))
+elif cmd == "move":                                            # file by file, then empty folders
+    src, dst = p(rest[0]), p(rest[1])
+    for f in sorted(x for x in src.rglob("*") if x.is_file()):
+        t = dst / f.relative_to(src)
+        t.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(f), str(t))
+    if "--delete-empty-src-dirs" in sys.argv:
+        for d in sorted((x for x in src.rglob("*") if x.is_dir()), key=lambda x: -len(x.parts)):
+            d.rmdir()
+elif cmd == "rmdir":
+    p(rest[0]).rmdir()
 elif cmd == "deletefile":
     p(rest[0]).unlink()
 elif cmd == "purge":

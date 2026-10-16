@@ -2,7 +2,7 @@
 
 Public API: Settings, Layout, DataPath, ResultsLayout, DataUnit, Registry, Store, get_layout, get_store.
 """
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
 from .config import ConfigError, Settings  # noqa: E402
 from .layout import DataPath, Layout, ResultsLayout, get_layout  # noqa: E402

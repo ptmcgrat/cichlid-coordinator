@@ -168,7 +168,21 @@ class RcloneBackend:
         self._ok(self.run(["purge" if is_dir else "deletefile", self._u(rel)]), f"deleting {rel}")
 
     def move(self, src, dst):
-        self._ok(self.run(["moveto", self._u(src), self._u(dst)]), f"moving {src}")
+        """Server-side move. Dropbox refuses to move a folder holding too many files in one
+        operation; then the folder's files are moved individually (still server-side, in
+        parallel) and the emptied folders removed."""
+        r = self.run(["moveto", self._u(src), self._u(dst)])
+        if r.returncode == 0:
+            return
+        parent, _, name = src.strip("/").rpartition("/")
+        if (name + "/") not in self.list(parent):
+            self._ok(r, f"moving {src}")                        # a file: nothing else to try
+        logger.warning("whole-folder move of %s failed (%s); moving its files individually", src,
+                       (r.stderr or "").strip().splitlines()[-1:] or "")
+        self._ok(self.run(["move", self._u(src), self._u(dst), "--transfers", "32", "--checkers", "32",
+                           "--delete-empty-src-dirs"]), f"moving the files of {src}")
+        if (name + "/") in self.list(parent):                   # rclone may leave the top folder
+            self.run(["rmdir", self._u(src)])
 
 
 # =============================================================================== helpers
