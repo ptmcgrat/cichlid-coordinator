@@ -19,3 +19,29 @@ Sdia	Simochromis diagramma	GCF_900408965.1	ncbi	gff3	Tropheini
 Hbur	Haplochromis burtoni	GCF_018398535.1	ncbi	gff3	Haplochromini			in 2018 set (Broad); long-read GCA_988222625.1 pending annotation
 Mzeb	Maylandia zebra	GCF_041146795.1	ncbi	gff3	Haplochromini (Malawi)			in 2018 set (Broad/UMD)
 Acal	Astatotilapia calliptera	GCF_964374335.1	ncbi	gff3	Haplochromini (Malawi)			
+Esur	Etroplus suratensis		local	gff3	Etroplinae	Inputs/Proteins/local_sources/Esur/prepared/genomic.gff	Inputs/Proteins/local_sources/Esur/prepared/protein.faa	Katneni et al. 2024 Sci Data; proteins from the authors; figshare 26303968 (CC BY 4.0)
+Bspl	Betta splendens	GCF_900634795.4	ncbi	gff3	Percomorpha: Anabantaria			project species (non-traditional model)
+Gacu	Gasterosteus aculeatus	GCF_964276395.1	ncbi	gff3	Percomorpha: Eupercaria			project species (non-traditional model); fGasAcu3 haplotype 1
+Olat	Oryzias latipes	GCF_053564925.1	ncbi	gff3	Ovalentaria: Beloniformes			OrthoFinder relative
+Nfur	Nothobranchius furzeri	GCF_043380555.1	ncbi	gff3	Ovalentaria: Cyprinodontiformes			OrthoFinder relative
+Fhet	Fundulus heteroclitus	GCF_011125445.2	ncbi	gff3	Ovalentaria: Cyprinodontiformes			OrthoFinder relative
+Pret	Poecilia reticulata	GCF_904066995.2	ncbi	gff3	Ovalentaria: Cyprinodontiformes			OrthoFinder relative
+Xmac	Xiphophorus maculatus	GCF_002775205.1	ncbi	gff3	Ovalentaria: Cyprinodontiformes			OrthoFinder relative
+Aoce	Amphiprion ocellaris	GCF_022539595.1	ncbi	gff3	Ovalentaria: Pomacentridae			OrthoFinder relative
+Trub	Takifugu rubripes	GCF_901000725.3	ncbi	gff3	Percomorpha: Eupercaria			OrthoFinder reference
+Gmor	Gadus morhua	GCF_902167405.1	ncbi	gff3	Teleostei: Gadiformes			OrthoFinder reference
+Eluc	Esox lucius	GCF_011004845.1	ncbi	gff3	Teleostei: Esociformes			OrthoFinder reference
+Char	Clupea harengus	GCF_900700415.2	ncbi	gff3	Teleostei: Clupeiformes			OrthoFinder reference
+Drer	Danio rerio	GCF_052040795.2	ncbi	gff3	Teleostei: Cypriniformes			OrthoFinder reference; GRCz13ab
+Amex	Astyanax mexicanus	GCF_023375975.1	ncbi	gff3	Teleostei: Characiformes			OrthoFinder reference
+Pkin	Paramormyrops kingsleyae	GCF_048594095.1	ncbi	gff3	Teleostei: Osteoglossomorpha			OrthoFinder reference
+Aang	Anguilla anguilla	GCF_013347855.1	ncbi	gff3	Teleostei: Elopomorpha			OrthoFinder reference
+Locu	Lepisosteus oculatus	GCF_040954835.1	ncbi	gff3	Holostei			OrthoFinder reference
+Ecal	Erpetoichthys calabaricus	GCF_900747795.2	ncbi	gff3	Polypteriformes			OrthoFinder reference
+Hsap	Homo sapiens	GCF_000001405.40	ncbi	gff3	Mammalia			OrthoFinder reference
+Mmus	Mus musculus	GCF_000001635.27	ncbi	gff3	Mammalia			OrthoFinder reference
+Ggal	Gallus gallus	GCF_016699485.2	ncbi	gff3	Aves			OrthoFinder reference
+Xtro	Xenopus tropicalis	GCF_000004195.4	ncbi	gff3	Amphibia			OrthoFinder reference
+Lcha	Latimeria chalumnae	GCF_037176945.1	ncbi	gff3	Sarcopterygii: Actinistia			OrthoFinder reference
+Cmil	Callorhinchus milii	GCF_018977255.1	ncbi	gff3	Chondrichthyes			OrthoFinder reference; scaffold-level
+Bflo	Branchiostoma floridae	GCF_000003815.2	ncbi	gff3	Cephalochordata			OrthoFinder outgroup
