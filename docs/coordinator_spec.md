@@ -35,7 +35,10 @@ cichlid-coordinator/
 │   ├── provenance.py        SourceRecord, checksums
 │   ├── schemas.py           boundary file formats: readers, writers, validators
 │   ├── proteomes.py         one protein per gene
-│   ├── downloaders/         ncbi.py, local.py (done); families.py, annotations.py, expression.py, populations.py
+│   ├── downloaders/         ncbi, local, annotations, expression, h5ad, rnaseq, blumer, blumer_samples, compara
+│   ├── newick.py            Newick parser, shared with the pipeline
+│   ├── backup.py            push-what-you-wrote helper for the moved scripts
+│   ├── check.py             cichlid-data check
 │   ├── migrate.py           one-time move from the old layout
 │   └── cli.py               the cichlid-data command
 ├── tests/                   all tests run offline against LocalBackend
@@ -195,31 +198,51 @@ From each species' download, one protein per protein-coding gene: the pipeline's
 
 ### Downloaders (`downloaders/`)
 
-Each subclass of `Downloader` implements `fetch()` and `verify()`; the base class writes the `SourceRecord`, updates the catalog where relevant, and pushes. Required sources:
+The pipeline's download and preparation scripts, moved over with their logic unchanged: only their default folders (now from the layout) and their backups (now pushes through the store) changed. Each keeps its own options.
 
-| Module | Sources |
-|---|---|
-| `ncbi.py` | Done (v0.6.0): the pipeline's Stage 1, moved over unchanged. Genomes and annotations for every `species.tsv` row: from NCBI Datasets (`source=ncbi`; verified against NCBI's checksums, resumable, checked against NCBI's metadata first) or copied from local files (`source=local`; paths may be relative to the data root). A species missing locally but in the cloud is pulled rather than fetched again. `cichlid-data download genomes [--species ...] [--check-only] [--force] [--push]`, then the catalog is rebuilt |
-| `local.py` | Done (v0.6.0): `prepare_local_species.py`, moved over unchanged. Converts a non-NCBI annotation into the download files (`cichlid-data prepare-local --prefix P --cds ... [--proteins ...]`; output defaults to `Inputs/Proteins/local_sources/<P>/prepared/`) |
-| `families.py` | TreeFam 9 (HMMs, trees); Ensembl Compara dumps and pruning to the panel |
-| `annotations.py` | GO (go-basic.obo, GAFs), PANTHER classification, Ensembl names, 2018 legacy files |
-| `expression.py` | HPA, Bgee, Zebrahub, Daniocell, Brawand (nf-core outputs), with their summaries |
-| `populations.py` | Blumer et al. 2025 VCFs and supplementary tables |
+| Module | Command | Sources |
+|---|---|---|
+| `ncbi.py` | `download genomes` | Stage 1: genomes and annotations from NCBI Datasets (`source=ncbi`; verified, resumable, checked against NCBI's metadata) or local files (`source=local`; paths may be relative to the data root). Species already in the cloud are pulled rather than fetched again; the catalog is rebuilt afterwards |
+| `local.py` | `prepare-local` | Converts a non-NCBI annotation into the download files (`prepare_local_species.py`) |
+| `annotations.py` | `download annotations` | GO (go-basic.obo, human and ZFIN GAFs) and PANTHER classifications |
+| `expression.py` | `download expression --source hpa\|bgee\|daniocell` | Human Protein Atlas, Bgee, Daniocell raw files |
+| `h5ad.py` | `summarize h5ad` | Single-cell atlases (Zebrahub, Daniocell) to per-cell-type summaries; needs the `[expression]` extra (NumPy, SciPy) |
+| `rnaseq.py` | `summarize rnaseq` | Tissue RNA-seq (nf-core outputs, e.g. Brawand) to per-tissue summaries |
+| `blumer.py` | `download populations` | Blumer et al. 2025 VCFs and tables (about 200 GB; resumable, checksum-verified) |
+| `blumer_samples.py` | `populations samples` | Sample metadata for the VCFs (Table S1, optionally the lab sheet; `[samples]` extra for gspread) |
+| `compara.py` | `prepare compara` | Prunes the Compara dumps to `config/compara_panel.tsv`; the dumps, panel and output folder default to their layout paths |
+
+`newick.py` (the pipeline's Newick parser) is a shared module of the coordinator, so the pipeline can import it from here.
+
+### Check (`check.py`)
+
+`cichlid-data check [--method M] [--fetch] [--deep]` confirms, for each method, that everything it needs is present and sound: the proteomes of its species (valid against the schemas, with the genes-table cross-check) and its resources (TreeFam 9 or the prepared Compara trees, and the legacy name tables), each verified against its source record (sizes; `--deep` also checksums). `--fetch` pulls anything missing from the cloud first. It exits with an error if anything is missing or invalid, so run scripts can call it before starting.
 
 ## 5. Command line
 
 ```
-cichlid-data where <thing> [args]          print a path, e.g. "where proteome Mzeb"
-cichlid-data env                            shell exports of the main paths
-cichlid-data status [unit]
-cichlid-data pull <unit> | push <unit>      --dry-run on every transferring command
-cichlid-data download <source> [--species ...]
-cichlid-data proteomes [--species ...]
-cichlid-data catalog build | validate
-cichlid-data validate <file>                check any boundary file against its schema
-cichlid-data check [--method M]             every input a method needs is present and verified
-cichlid-data migrate --dry-run | --apply
+cichlid-data init                                   once per machine
+cichlid-data where <thing> [args] [--cloud]          print a path, e.g. "where proteome Mzeb"
+cichlid-data env                                     shell exports of the main paths
+cichlid-data units | status [pattern]
+cichlid-data pull | push <pattern>... [--force] [--dry-run]
+cichlid-data ensure <relative path>                  fetch one file or shard if missing
+cichlid-data retire <unit key>                       delete a unit's or shard's cloud copy
+cichlid-data migrate [--apply] [--cleanup]           the one-time move to the new layout
+cichlid-data provenance write | check | show
+cichlid-data catalog build | show | missing | validate [--method M] [--role R]
+cichlid-data validate <file>... [--kind K]
+cichlid-data download genomes [--species P,...] [--check-only] [--force] [--push]
+cichlid-data prepare-local --prefix P ...
+cichlid-data proteomes [--species P,...] [--force] [--push]
+cichlid-data download annotations | expression | populations ...
+cichlid-data populations samples ...
+cichlid-data prepare compara ...
+cichlid-data summarize h5ad | rnaseq ...
+cichlid-data check [--method M] [--fetch] [--deep]
 ```
+
+The moved scripts' commands take the scripts' own options (`--help` lists them).
 
 ## 6. Migration from the current layout
 

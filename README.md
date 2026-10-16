@@ -33,19 +33,18 @@ cichlid-data push results/Compara2026/orthology
 cichlid-data migrate              # dry run of moving the inputs to the new layout; --apply to do it
 ```
 
-## Status (v0.6.5)
+## Status (v0.7.0)
 
-Done: configuration, layout, data units, transfers (rclone and a local test backend; fingerprints,
-conflict detection, immutable units, locks, transfer log), the layout migration (applied on mzebra),
-provenance records (`config/sources.toml`, `cichlid-data provenance write|check|show`), the species
-catalog (`config/species_sets.toml`, `cichlid-data catalog build|show|missing|validate`), the
-file-format schemas (`cichlid_data.schemas`, `cichlid-data validate`), genome downloads (the
-pipeline's Stage 1, `cichlid-data download genomes`) and local-species preparation
-(`cichlid-data prepare-local`), proteomes (the pipeline's Stage 2, `cichlid-data proteomes`), and
-the command line. Depends on `requests`.
+Feature-complete against `docs/coordinator_spec.md`: configuration, layout, data units, transfers
+(fingerprints, conflict detection, immutable units, locks, transfer log), the layout migration
+(applied on mzebra), provenance records, the species catalog, file-format schemas, genome downloads
+and local-species preparation, proteomes (Stage 2, with two fixes), all the other downloaders
+(annotations, expression, populations, the Compara preparation), and `cichlid-data check`.
 
-Next: the remaining downloaders (annotations, the Compara panel preparation, expression,
-population data), then `cichlid-data check`.
+Optional extras: `pip install -e ".[expression]"` (NumPy, SciPy) for `summarize h5ad`;
+`".[samples]"` (gspread) for `populations samples --sheet`.
+
+Next: the pipeline uses the coordinator for its paths and transfers.
 
 ## Tests
 

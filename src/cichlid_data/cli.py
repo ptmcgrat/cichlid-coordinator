@@ -11,7 +11,13 @@
     cichlid-data retire UNIT_KEY                     # delete a unit's or shard's cloud copy
     cichlid-data download genomes [--species P,..] [--check-only] [--push]   # Stage 1: NCBI or local files
     cichlid-data prepare-local --prefix P --cds ... # convert a non-NCBI annotation (Etroplus)
+    cichlid-data download annotations|expression|populations [options]
+    cichlid-data populations samples [options]       # sample metadata for the population VCFs
+    cichlid-data prepare compara [options]           # prune the Compara dumps to the reference panel
+    cichlid-data summarize h5ad|rnaseq [options]     # expression summaries
+      (these run the moved scripts with their own options: add --help to see them)
     cichlid-data proteomes [--species P,..] [--push] # one protein per gene, for each species
+    cichlid-data check [--method M] [--fetch] [--deep]   # is everything each method needs here and sound?
     cichlid-data validate PATH... [--kind K]        # check files against their schemas
     cichlid-data catalog build|show|missing|validate # the species catalog (--method, --role)
     cichlid-data provenance write|check|show        # source records for every input
@@ -56,6 +62,8 @@ def main(argv=None, backend=None, settings=None):
     argv = sys.argv[1:] if argv is None else list(argv)
     if argv[:1] == ["prepare-local"]:          # every option belongs to the preparation tool
         return prepare_local(argv[1:], settings)
+    if tuple(argv[:2]) in PASSTHROUGH:          # moved scripts keep their own options
+        return passthrough(tuple(argv[:2]), argv[2:], settings)
     ap = argparse.ArgumentParser(prog="cichlid-data", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -97,6 +105,10 @@ def main(argv=None, backend=None, settings=None):
     p.add_argument("--force", action="store_true", help="rebuild even if up to date")
     p.add_argument("--push", action="store_true", help="push the proteomes to the cloud afterwards")
     p.add_argument("--no-fetch", action="store_true", help="don't pull missing downloads from the cloud")
+    p = sub.add_parser("check", help="is everything each method needs here and sound?")
+    p.add_argument("--method", help="one method (default: all)")
+    p.add_argument("--fetch", action="store_true", help="pull anything missing from the cloud first")
+    p.add_argument("--deep", action="store_true", help="also compare checksums with source records")
     p = sub.add_parser("validate", help="check files against their schemas")
     p.add_argument("paths", nargs="+")
     p.add_argument("--kind", choices=["genes", "assign", "orthologs", "proteome", "run", "family"])
@@ -178,6 +190,24 @@ def main(argv=None, backend=None, settings=None):
             print("pushed proteins/proteomes: " + ", ".join(sorted(set(res.values()))))
         if failed:
             sys.exit(f"{len(failed)} species failed: {', '.join(failed)}")
+        return 0
+    if args.cmd == "check":
+        from .catalog import Catalog
+        from .check import check as run_check
+        C = Catalog.build(L)
+        store = Store(L, B, context="check") if args.fetch else None
+        findings = run_check(L, C, [args.method] if args.method else None, fetch=args.fetch, deep=args.deep,
+                             store=store, say=print)
+        bad = [f for f in findings if not f.ok]
+        for m in dict.fromkeys(f.method for f in findings):
+            mine = [f for f in findings if f.method == m]
+            n_bad = sum(not f.ok for f in mine)
+            print(f"{m}: {len(mine) - n_bad} of {len(mine)} inputs ready" + ("" if not n_bad else f"; {n_bad} problem(s):"))
+            for f in mine:
+                if not f.ok:
+                    print(f"    {f.item}: {f.detail}")
+        if bad:
+            sys.exit(1)
         return 0
     if args.cmd == "validate":
         from .schemas import SchemaError, validate as _validate
@@ -278,6 +308,40 @@ def main(argv=None, backend=None, settings=None):
             Migration(L, B).run(lambda: Store(L, B, context="migrate"), apply=args.apply, cleanup=args.cleanup)
     except (TransferError, KeyError) as e:
         sys.exit(str(e))
+    return 0
+
+
+# command -> (module, help). Their options are the moved scripts' own; run with --help to see them.
+PASSTHROUGH = {
+    ("download", "annotations"): ("annotations", "GO and PANTHER annotation files"),
+    ("download", "expression"): ("expression", "HPA, Bgee or Daniocell expression data (--source)"),
+    ("download", "populations"): ("blumer", "Blumer et al. 2025 population VCFs and tables"),
+    ("populations", "samples"): ("blumer_samples", "sample metadata for the population VCFs"),
+    ("prepare", "compara"): ("compara", "prune the Compara dumps to the reference panel"),
+    ("summarize", "h5ad"): ("h5ad", "single-cell atlas (h5ad) to per-cell-type summaries; needs the [expression] extra"),
+    ("summarize", "rnaseq"): ("rnaseq", "tissue RNA-seq (nf-core outputs) to per-tissue summaries"),
+}
+
+
+def passthrough(command, argv, settings=None):
+    """Run a moved script with its own options, adding the coordinator's default paths it requires."""
+    import importlib
+    module = importlib.import_module(f".downloaders.{PASSTHROUGH[command][0]}", __package__)
+    argv = list(argv)
+    if command == ("prepare", "compara") and "--help" not in argv and "-h" not in argv:
+        from .config import config_dir
+        try:
+            s = settings or Settings.load()
+        except ConfigError as e:
+            sys.exit(str(e))
+        C = Layout(s.local_root, s.cloud_remote).family_resource("Compara116").local
+        defaults = {"--nhx": C / "dumps" / "Compara.116.protein_default.nhx.emf.gz",
+                    "--aln": C / "dumps" / "Compara.116.protein_default.aa.fasta.gz",
+                    "--panel": config_dir() / "compara_panel.tsv", "--outdir": C / "prepared"}
+        for opt, path in defaults.items():
+            if opt not in argv:
+                argv += [opt, str(path)]
+    module.main(argv)
     return 0
 
 
