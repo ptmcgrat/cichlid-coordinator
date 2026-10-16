@@ -314,7 +314,8 @@ class Store:
         keys = set()
         d = self.layout.local_root / unit.rel
         if d.is_dir():
-            keys |= {unit.shard_by(e.name, e.is_dir()) for e in d.iterdir() if not e.name.startswith(".")}
+            keys |= {unit.shard_by(e.name, e.is_dir()) for e in d.iterdir()
+                     if not e.name.startswith(".") and not _excluded(e.name, unit.excludes)}
         keys |= {k[len(unit.name) + 1:] for k in self.index() if k.startswith(unit.name + "/")}
         return sorted(keys)
 
@@ -326,7 +327,8 @@ class Store:
             if not d.is_dir():
                 return []
             return [f"{unit.base}/{e.name}" for e in sorted(d.iterdir())
-                    if not e.name.startswith(".") and unit.shard_by(e.name, e.is_dir()) == shard]
+                    if not e.name.startswith(".") and not _excluded(e.name, unit.excludes)
+                    and unit.shard_by(e.name, e.is_dir()) == shard]
         return [unit.base] if (base / unit.base).exists() else []
 
     def local_fp(self, unit, shard=None):
@@ -443,6 +445,25 @@ class Store:
             raise TransferError("push incomplete; nothing was overwritten for: " +
                                 "; ".join(f"{k}: {v}" for k, v in bad.items()))
         return results
+
+    def retire(self, key):
+        """Delete a unit's (or shard's) cloud copy and its index entry, e.g. a shard that should no
+        longer exist. The local copy is untouched."""
+        unit_name, _, shard = key.rpartition("/") if key not in {u.name for u in self.registry().all()} else (key, "", "")
+        unit = self.registry().get(unit_name if shard else key)
+        shard = shard or None
+        if key not in self.index():
+            return "not in the cloud index"
+        if self.dry:
+            return "would delete"
+        target = unit.cloud_tar(shard) if unit.packing != "files" else unit.rel
+        if self._is_cloud_dir(target) or self.backend.exists(target):
+            self.backend.delete(target)
+        del self.index()[key]
+        self.state.pop(key, None)
+        self._log("retire", key, "deleted")
+        self._save()
+        return "deleted"
 
     def ensure(self, path):
         """Make a path present locally (pulling the unit or shard that owns it). -> local Path."""

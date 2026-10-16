@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 
 from .layout import ANALYSES, FAMILIES, INPUTS, PROTEINS, RESULTS, ResultsLayout
 
+DOWNLOAD_REPORTS = ("download_summary.tsv", "check_summary.tsv")
 FAMILY_EXCLUDES = ("*/stage5/*.fa", "*.raxml.rba", "*.raxml.ckp", "*.raxml.startTree", "*.raxml.mlTrees",
                    "*.part", "residues.tsv.gz", "residues.done.json")
 
@@ -66,7 +67,10 @@ class Registry:
     def _build(self):
         U = DataUnit
         yield U("proteins/downloads", f"{PROTEINS}/downloads", "immutable", "shards", shard_by=species_shard,
-                description="genomes and annotations as downloaded, one shard per species")
+                excludes=DOWNLOAD_REPORTS, description="genomes and annotations as downloaded, one shard per species")
+        for rep in DOWNLOAD_REPORTS:                     # reports rewritten on every run: not immutable
+            yield U(f"proteins/{rep.split('.')[0]}", f"{PROTEINS}/downloads/{rep}", "regenerable", "files",
+                    description="per-species report of the last download or check")
         yield U("proteins/local_sources", f"{PROTEINS}/local_sources", "immutable", "files",
                 description="raw files for species not annotated by NCBI")
         yield U("proteins/proteomes", f"{PROTEINS}/proteomes", "regenerable", "tar",

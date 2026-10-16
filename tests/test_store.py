@@ -108,6 +108,27 @@ class TestStore(unittest.TestCase):
         log = (b.state_dir() / "transfers.log").read_text()
         self.assertIn("proteins/downloads/Mzeb", log)
 
+    def test_download_reports_and_retire(self):
+        a = self.e.a
+        write(a.download("Mzeb").local / "protein.faa", "P")
+        write(a.download("Mzeb").local.parent / "download_summary.tsv", "v1")
+        res = self.e.store(a).push(["proteins/downloads", "proteins/download_summary"])
+        self.assertEqual(set(res), {"proteins/downloads/Mzeb", "proteins/download_summary"})   # no _top shard
+        write(a.download("Mzeb").local.parent / "download_summary.tsv", "v2, rewritten by the next run")
+        res = self.e.store(a).push(["proteins/downloads", "proteins/download_summary"])
+        self.assertEqual(res["proteins/download_summary"], "uploaded")                         # not immutable
+        self.assertEqual((self.e.cloud / "Inputs/Proteins/downloads/download_summary.tsv").read_text(),
+                         "v2, rewritten by the next run")
+        # an old _top shard, as left by earlier versions, can be retired
+        S = self.e.store(a)
+        S.index()["proteins/downloads/_top"] = {"fingerprint": "old"}
+        write(self.e.cloud / "Inputs/Proteins/downloads/_top.tar", "old tar")
+        S._save()
+        self.assertEqual(self.e.store(a).retire("proteins/downloads/_top"), "deleted")
+        self.assertFalse((self.e.cloud / "Inputs/Proteins/downloads/_top.tar").exists())
+        self.assertNotIn("proteins/downloads/_top", self.e.store(a).index())
+        self.assertEqual(self.e.store(a).retire("proteins/downloads/_top"), "not in the cloud index")
+
     def test_dry_run_changes_nothing(self):
         a = self.e.a
         write(a.proteome("Mzeb").local, ">Mzeb_1\nM\n")

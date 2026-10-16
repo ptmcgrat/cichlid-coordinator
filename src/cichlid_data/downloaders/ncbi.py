@@ -357,6 +357,10 @@ def download(layout, manifest, species=None, check_only=False, force=False, keep
                     pass
             if check_only:
                 rec["status"] = "checked"
+                say(f"[{p}] {row['accession'] or 'local files'}: " + (
+                    f"{meta.get('assembly_name', '')} ({meta.get('assembly_level', '')}), "
+                    f"{meta.get('annotation_name', '')}, {meta.get('protein_coding_genes', '')} protein-coding genes"
+                    if meta else "local files listed in species.tsv found"))
             elif already_done(sp_dir) and not force:
                 rec["status"] = "up-to-date"
                 say(f"[{p}] up to date, skipping")
@@ -382,5 +386,10 @@ def download(layout, manifest, species=None, check_only=False, force=False, keep
         summary.append(rec)
         time.sleep(0.2 if session.headers.get("api-key") else 0.4)  # stay under NCBI rate limits
 
-    merge_summary(root / ("check_summary.tsv" if check_only else "download_summary.tsv"), summary)
+    path = root / ("check_summary.tsv" if check_only else "download_summary.tsv")
+    merge_summary(path, summary)
+    counts = {}
+    for r in summary:
+        counts[r["status"]] = counts.get(r["status"], 0) + 1
+    say(f"{len(summary)} species: " + ", ".join(f"{v} {k}" for k, v in sorted(counts.items())) + f"; wrote {path}")
     return summary, failed

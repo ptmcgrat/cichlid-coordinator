@@ -182,6 +182,16 @@ class TestEndToEnd(unittest.TestCase):
             self.run_main(d, sess3)
             self.assertTrue([c for c in sess3.calls if c[0].endswith("download")])
 
+    def test_check_only_reports_each_species(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = write_manifest(d, f"Onil\tOreochromis niloticus\t{ACC}\tncbi\tgff3\n")
+            msgs = []
+            with mock.patch.object(s1.time, "sleep"):
+                s1.download(Layout(Path(d) / "data", "fake:"), p, session=FakeSession(), check_only=True, say=msgs.append)
+            self.assertIn(f"[Onil] {ACC}: O_niloticus_UMD_NMBU (Chromosome), GCF_001858045.2-RS_2025_06, "
+                          "29562 protein-coding genes", msgs)
+            self.assertTrue(msgs[-1].startswith("1 species: 1 checked; wrote "))
+
     def test_check_only_downloads_nothing(self):
         with tempfile.TemporaryDirectory() as d:
             sess = FakeSession()

@@ -8,6 +8,7 @@
     cichlid-data pull PATTERN... [--force] [--dry-run]
     cichlid-data push PATTERN... [--force] [--dry-run]
     cichlid-data ensure RELATIVE_PATH
+    cichlid-data retire UNIT_KEY                     # delete a unit's or shard's cloud copy
     cichlid-data download genomes [--species P,..] [--check-only] [--push]   # Stage 1: NCBI or local files
     cichlid-data prepare-local --prefix P --cds ... # convert a non-NCBI annotation (Etroplus)
     cichlid-data proteomes [--species P,..] [--push] # one protein per gene, for each species
@@ -76,6 +77,9 @@ def main(argv=None, backend=None, settings=None):
         p.add_argument("patterns", nargs="+")
         p.add_argument("--force", action="store_true")
         p.add_argument("--dry-run", action="store_true")
+    p = sub.add_parser("retire", help="delete a unit's or shard's cloud copy and index entry")
+    p.add_argument("key", help="e.g. proteins/downloads/_top")
+    p.add_argument("--dry-run", action="store_true")
     p = sub.add_parser("ensure")
     p.add_argument("path")
     p = sub.add_parser("download", help="download inputs")
@@ -264,6 +268,8 @@ def main(argv=None, backend=None, settings=None):
             for k, v in res.items():
                 if v != "nothing local":
                     print(f"  {k}: {v}")
+        elif args.cmd == "retire":
+            print(f"{args.key}: {S.retire(args.key)}")
         elif args.cmd == "ensure":
             print(S.ensure(L.path(args.path)))
         elif args.cmd == "migrate":
