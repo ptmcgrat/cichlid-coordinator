@@ -23,7 +23,7 @@ def old_layout(root, cloud):
              "Rebuild2026/orthology/Mzeb.orthologs.tsv", "Compara2026/treefam/Mzeb.treefam.tsv",
              "Compara2026/families/C116_012345/tree.nwk", "Combined2026/site/site.sqlite",
              "Combined2026/analysis/tissues/summary.tsv", "Combined2026/analysis/teleost_copies.tsv",
-             "Combined2026/analysis/teleost_copies.png", "Data/Species/legacy2018.txt"]
+             "Combined2026/analysis/teleost_copies.png", "Data/Species/legacy2018.txt", "Data/Mystery/x.txt"]
     for f in files:
         write(root / f, f)
     # cloud: inputs copied as they are, the TreeFam trees as a tar
@@ -33,6 +33,11 @@ def old_layout(root, cloud):
     write(cloud / "Data/Compara116/Compara.116.protein_default.aa.fasta.gz", "dump")
     make_tar(cloud / "Data/Compara116/prepared.tar", root / "Data/Compara116", ["prepared"])
     make_tar(cloud / "Data/OriginalTreeFiles.tar", root / "Data", ["OriginalTreeFiles"])
+    # the 2018 resource's files, in the cloud only
+    for f in ("Data/Proteins/Metriaclima_zebra.BROADMZ2.pep.all.fa", "Data/Species/homo_sapiens.fa",
+              "Data/AllCichlidProteins.fa", "Data/AllCichlidProteins.fa.fai", "Data/AllCichlidProteins.treefam",
+              "Data/NewTreeFiles/TF101001.added.nex"):
+        write(cloud / f, "2018")
     # results: one tar per unit, paths relative to the old run folder; index and sync state
     for old, units in (("Rebuild2026", ["genomes", "proteomes", "treefam", "orthology"]),
                        ("Compara2026", ["treefam"]), ("Combined2026", ["site"])):
@@ -72,8 +77,10 @@ class TestMigration(unittest.TestCase):
         for item in ("local Rebuild2026/", "cloud Rebuild2026/", "local Compara2026/", "local Combined2026/",
                      "local Data/Blumer2025/coding/", "cloud Data/Blumer2025/inversions/"):
             self.assertIn(item, design, item)
-        self.assertIn("local Data/Species/", unexpected)
-        for absent in ("Results/", "Analyses/", "families/TF101.tar ->", "treefam"):
+        self.assertIn("local Data/Mystery/", unexpected)                     # unknown folders are reported
+        self.assertNotIn("Data/Species/", unexpected)                         # the 2018 files are archived
+        self.assertIn("cloud move Data/NewTreeFiles -> Archive/Project2018/NewTreeFiles", text)
+        for absent in ("Results/", "Analyses/", "families/TF101.tar ->", "Rebuild2026/treefam", "Compara2026/treefam"):
             self.assertNotIn(absent, text.split("Left in place")[0], absent)
 
     def test_apply(self):
@@ -104,6 +111,14 @@ class TestMigration(unittest.TestCase):
                     "Inputs/Families/Compara116/prepared.tar", "Inputs/Populations/Blumer2025/chr10.vcf.gz",
                     "Inputs/Proteins/downloads/Mzeb.tar", "Inputs/Families/TreeFam9/trees.tar"):
             self.assertTrue((cloud / rel).is_file(), rel)
+        for rel in ("Archive/Project2018/Proteins/Metriaclima_zebra.BROADMZ2.pep.all.fa", "Archive/Project2018/Species/homo_sapiens.fa",
+                    "Archive/Project2018/AllCichlidProteins.fa", "Archive/Project2018/AllCichlidProteins.fa.fai",
+                    "Archive/Project2018/AllCichlidProteins.treefam", "Archive/Project2018/NewTreeFiles/TF101001.added.nex"):
+            self.assertTrue((cloud / rel).is_file(), rel)
+        self.assertEqual(sorted(p.name for p in (cloud / "Data").iterdir()), ["Blumer2025"])   # only the variant analyses remain
+        self.assertEqual(sorted(p.name for p in (cloud / "Data/Blumer2025").iterdir()), ["coding", "inversions"])
+        self.assertEqual(sorted(p.name for p in (r / "Data").iterdir()), ["Blumer2025", "Mystery"])  # unknown left alone
+        self.assertTrue((r / "Archive/Project2018/Species/legacy2018.txt").is_file())
         for gone in ("Rebuild2026/genomes.tar", "Data/OriginalTreeFiles.tar", "Rebuild2026/proteomes.tar"):
             self.assertFalse((cloud / gone).exists(), gone)
         st = {k: s for k, s, _ in self.e.store(a).status("proteins/*")}

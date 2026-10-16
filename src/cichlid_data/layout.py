@@ -131,6 +131,10 @@ class Layout:
     def population(self, name=""):
         return self.path(f"{INPUTS}/Populations/{name}")
 
+    def archive(self, name=""):
+        """Records of earlier projects, e.g. archive("Project2018")."""
+        return self.path(f"Archive/{name}")
+
     # ---- results and analyses
     def results(self, run):
         return ResultsLayout(self, run)

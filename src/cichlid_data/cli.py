@@ -35,6 +35,7 @@ WHERE = {
     "population": lambda L, a: L.population(a[0] if a else ""),
     "results": lambda L, a: L.results(a[0]).part(a[1]) if len(a) > 1 else L.results(a[0]).root(),
     "analysis": lambda L, a: L.analysis(a[0]),
+    "archive": lambda L, a: L.archive(a[0] if a else ""),
 }
 
 

@@ -85,6 +85,7 @@ class Registry:
                 description="expression summaries")
         yield U("expression/raw", f"{INPUTS}/Expression/raw", "on_demand", "files", description="raw expression data")
         yield U("populations", f"{INPUTS}/Populations", "on_demand", "files", description="population data (VCFs)")
+        yield U("archive", "Archive", "on_demand", "files", description="records of earlier projects (2018 resource)")
         for run in self._runs():
             for part in ResultsLayout.PARTS:
                 if part == "families":

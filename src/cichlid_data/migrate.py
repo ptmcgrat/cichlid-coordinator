@@ -6,7 +6,9 @@ proteomes) to the new one (Inputs/), locally and in the cloud.
     cichlid-data migrate --apply --cleanup   # and delete the old cloud tars that were repacked
 
 Moved: downloads (genomes and annotations), proteomes, TreeFam 9, Compara 116, annotations,
-expression, population data (VCFs, tables, reference) and local species sources.
+expression, population data (VCFs, tables, reference) and local species sources. The 2018
+resource's own files (its protein sets, combined protein file and TreeFam scan, and its trees)
+are moved to Archive/Project2018/ as a record.
 Left in place by design: all results (Rebuild2026/, Compara2026/, Combined2026/: phylogenies,
 calls, browser site, analyses) and the variant analyses in Data/Blumer2025/coding and inversions.
 The TreeFam and Compara runs are redone with the new species set, so their old results stay
@@ -24,6 +26,9 @@ from pathlib import Path
 
 OLD = ("Data", "Rebuild2026", "Compara2026", "Combined2026")
 BLUMER_ANALYSES = ("coding", "inversions")
+# the 2018 resource's own inputs and outputs: kept as a record, not used by the new pipeline
+PROJECT_2018 = ("Proteins", "Species", "AllCichlidProteins.fa", "AllCichlidProteins.fa.fai",
+                "AllCichlidProteins.treefam", "NewTreeFiles")
 
 
 @dataclass
@@ -76,6 +81,8 @@ class Migration:
         for n in sorted(self._names("Data/Blumer2025") - set(BLUMER_ANALYSES)):
             both(f"Data/Blumer2025/{n}", f"Inputs/Populations/Blumer2025/{n}")
         both("Data/Esur", "Inputs/Proteins/local_sources/Esur")
+        for n in PROJECT_2018:
+            both(f"Data/{n}", f"Archive/Project2018/{n}")
         if self._local("Rebuild2026/genomes"):
             steps.append(Step("local", "move", "Rebuild2026/genomes", "Inputs/Proteins/downloads"))
             if self._cloud("Rebuild2026/genomes.tar"):
@@ -130,6 +137,23 @@ class Migration:
             state_path.write_text(json.dumps(new_state, indent=2, sort_keys=True))
         return n
 
+    def _remove_empty_parents(self, steps, say):
+        """Old folders emptied by the moves (e.g. Data/Compara116) are removed, deepest first."""
+        parents = set()
+        for s in steps:
+            parts = s.src.split("/")[:-1]
+            for i in range(len(parts), 0, -1):
+                parents.add((s.where, "/".join(parts[:i])))
+        for where, rel in sorted(parents, key=lambda x: -x[1].count("/")):
+            if where == "local":
+                d = self.root / rel
+                if d.is_dir() and not any(d.iterdir()):
+                    d.rmdir()
+                    say(f"  removed empty local {rel}/")
+            elif self._cloud(rel) and not self.backend.list(rel):
+                self.backend.delete(rel)
+                say(f"  removed empty cloud {rel}/")
+
     def run(self, store_factory, apply=False, cleanup=False, say=print):
         steps, repush = self.plan()
         if not steps and not repush:
@@ -166,6 +190,7 @@ class Migration:
                 shutil.move(str(src), str(dst))
             elif not self._cloud(s.dst):
                 self.backend.move(s.src, s.dst)
+        self._remove_empty_parents(steps, say)
         say(f"Carried over {self.carry_over(True)} index entries.")
         store = store_factory()
         for unit, old in repush:

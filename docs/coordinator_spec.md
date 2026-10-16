@@ -67,7 +67,8 @@ cichlid-coordinator/
 │   │   ├── residues/
 │   │   └── run.json
 │   └── Combined2026/                  orthology/, site/
-└── Analyses/<Name>/                   Variants, Tissues, Duplications, Enrichment, ...
+├── Analyses/<Name>/                   Variants, Tissues, Duplications, Enrichment, ...
+└── Archive/Project2018/               the 2018 resource's own files, kept as a record
 ```
 
 ## 4. Public API
@@ -214,10 +215,11 @@ cichlid-data migrate --dry-run | --apply
 | `Data/Expression/` | `Inputs/Expression/` |
 | `Data/Blumer2025/` (VCFs, tables, reference) | `Inputs/Populations/Blumer2025/` |
 | `Data/Esur/` | `Inputs/Proteins/local_sources/Esur/` |
+| `Data/Proteins/`, `Data/Species/`, `Data/AllCichlidProteins.*`, `Data/NewTreeFiles/` (the 2018 resource's own files) | `Archive/Project2018/` (a record; not used by the new pipeline) |
 
 **Left in place by design:** `Rebuild2026/`, `Compara2026/` and `Combined2026/` (phylogenies, calls, browser site, analyses), and `Data/Blumer2025/coding/` and `inversions/` (variant analyses).
 
-The dry run ends with two lists: what is left in place by design, and anything unexpected in `Data/`, so nothing is left behind silently. The proteomes' cloud index entry and sync state are carried over, so they are in sync immediately.
+Folders emptied by the moves are removed, so `Data/` ends up holding only the variant analyses. The dry run ends with two lists: what is left in place by design, and anything unexpected in `Data/`, so nothing is left behind silently. The proteomes' cloud index entry and sync state are carried over, so they are in sync immediately.
 
 ## 7. Acceptance criteria
 
