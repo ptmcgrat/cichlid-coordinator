@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cichlid-coordinator"
+version = "0.1.0"
+description = "File locations, cloud transfers and inputs for the cichlid protein phylogeny project"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+cichlid-data = "cichlid_data.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,207 @@
+# Reference panel for Compara 116 gene trees. Edit 'role' to change what is kept.
+#   reference   kept; ortholog calls are made to these species (Stage 6)
+#   panel       kept in the trees for context, placement and rooting
+#   validation  Ensembl copy of a manifest species: removed from the trees (it would look
+#               like a duplicate of the RefSeq gene), but searched in Stage 3 to cross-check
+#   exclude     removed
+species	role	group	note
+acanthochromis_polyacanthus	panel	ovalentaria	damselfish (Pomacentridae)
+ailuropoda_melanoleuca	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+amphilophus_citrinellus	panel	cichlid	Neotropical (Heroini), like Archocentrus
+amphiprion_ocellaris	panel	ovalentaria	clownfish (Pomacentridae)
+amphiprion_percula	exclude	fish	redundant with A. ocellaris
+anabas_testudineus	panel	percomorph	climbing perch (Anabantiformes)
+anas_platyrhynchos_platyrhynchos	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+anolis_carolinensis	panel	vertebrate	lizard
+anser_brachyrhynchus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+aotus_nancymaae	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+aquila_chrysaetos_chrysaetos	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+astatotilapia_calliptera	validation	cichlid	Ensembl copy of manifest species Acal: kept out of trees, used to cross-check placements
+astyanax_mexicanus	panel	teleost	cavefish (Characiformes)
+balaenoptera_musculus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+betta_splendens	panel	percomorph	betta
+bison_bison_bison	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+bos_grunniens	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+bos_indicus_hybrid	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+bos_mutus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+bos_taurus	panel	vertebrate	cow
+caenorhabditis_elegans	panel	outgroup	worm
+callithrix_jacchus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+callorhinchus_milii	panel	vertebrate	elephant shark
+camelus_dromedarius	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+canis_lupus_dingo	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+canis_lupus_familiaris	panel	vertebrate	dog
+capra_hircus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+carassius_auratus	exclude	fish	carp lineage genome duplication; zebrafish represents cyprinids
+carlito_syrichta	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+catagonus_wagneri	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+cavia_porcellus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+cebus_imitator	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+cercocebus_atys	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+cervus_hanglu_yarkandensis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+chelonoidis_abingdonii	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+chinchilla_lanigera	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+chlorocebus_sabaeus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+choloepus_hoffmanni	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+chrysemys_picta_bellii	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+ciona_intestinalis	panel	outgroup	tunicate
+ciona_savignyi	exclude	fish	redundant with C. intestinalis
+clupea_harengus	panel	teleost	herring
+cottoperca_gobio	panel	percomorph	notothenioid relative
+coturnix_japonica	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+cricetulus_griseus_picr	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+crocodylus_porosus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+cyclopterus_lumpus	panel	percomorph	lumpfish
+cynoglossus_semilaevis	exclude	fish	redundant with turbot
+cyprinodon_variegatus	panel	ovalentaria	pupfish
+cyprinus_carpio_carpio	exclude	fish	carp lineage genome duplication; zebrafish represents cyprinids
+danio_rerio	reference	reference	zebrafish (calls)
+dasypus_novemcinctus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+delphinapterus_leucas	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+denticeps_clupeoides	panel	teleost	denticle herring
+dicentrarchus_labrax	panel	percomorph	sea bass
+dipodomys_ordii	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+drosophila_melanogaster	panel	outgroup	fly
+echinops_telfairi	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+electrophorus_electricus	panel	teleost	electric eel
+eptatretus_burgeri	exclude	fish	lamprey roots the vertebrates
+equus_asinus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+equus_caballus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+erinaceus_europaeus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+erpetoichthys_calabaricus	panel	non-teleost fish	reedfish (Polypteriformes)
+esox_lucius	panel	teleost	pike: sister to salmonids, before their genome duplication
+felis_catus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+ficedula_albicollis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+fundulus_heteroclitus	panel	ovalentaria	killifish
+gadus_morhua	panel	teleost	cod
+gallus_gallus	panel	vertebrate	chicken
+gasterosteus_aculeatus	panel	percomorph	stickleback
+geospiza_fortis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+gopherus_evgoodei	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+gorilla_gorilla	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+haplochromis_burtoni	validation	cichlid	Ensembl copy of manifest species Hbur: kept out of trees, used to cross-check placements
+heterocephalus_glaber_female	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+hippocampus_comes	panel	percomorph	seahorse
+homo_sapiens	reference	reference	human (calls)
+hucho_hucho	exclude	fish	salmonid genome duplication
+ictalurus_punctatus	panel	teleost	channel catfish
+ictidomys_tridecemlineatus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+jaculus_jaculus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+kryptolebias_marmoratus	panel	ovalentaria	mangrove rivulus
+labrus_bergylta	panel	percomorph	wrasse
+larimichthys_crocea	panel	percomorph	yellow croaker
+lates_calcarifer	panel	percomorph	barramundi
+laticauda_laticaudata	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+latimeria_chalumnae	panel	vertebrate	coelacanth
+lepisosteus_oculatus	panel	non-teleost fish	spotted gar
+leptobrachium_leishanense	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+loxodonta_africana	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+macaca_fascicularis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+macaca_mulatta	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+macaca_nemestrina	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+mandrillus_leucophaeus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+marmota_marmota_marmota	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+mastacembelus_armatus	panel	percomorph	spiny eel
+maylandia_zebra	validation	cichlid	Ensembl copy of manifest species Mzeb: kept out of trees, used to cross-check placements
+meleagris_gallopavo	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+mesocricetus_auratus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+microcebus_murinus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+microtus_ochrogaster	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+monodelphis_domestica	panel	vertebrate	opossum
+monodon_monoceros	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+moschus_moschiferus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+mus_caroli	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+mus_musculus	reference	reference	mouse (calls)
+mus_pahari	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+mus_spicilegus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+mus_spretus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+mustela_putorius_furo	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+myotis_lucifugus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+myripristis_murdjan	panel	teleost	soldierfish (Holocentriformes)
+naja_naja	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+nannospalax_galili	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+neolamprologus_brichardi	validation	cichlid	Ensembl copy of manifest species Nbri: kept out of trees, used to cross-check placements
+neovison_vison	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+nomascus_leucogenys	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+notamacropus_eugenii	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+notechis_scutatus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+nothobranchius_furzeri	panel	ovalentaria	turquoise killifish
+ochotona_princeps	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+octodon_degus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+oncorhynchus_kisutch	exclude	fish	salmonid genome duplication
+oncorhynchus_mykiss	exclude	fish	salmonid genome duplication
+oncorhynchus_tshawytscha	exclude	fish	salmonid genome duplication
+oreochromis_niloticus	validation	cichlid	Ensembl copy of manifest species Onil: kept out of trees, used to cross-check placements
+ornithorhynchus_anatinus	panel	vertebrate	platypus
+oryctolagus_cuniculus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+oryzias_javanicus	exclude	fish	redundant with medaka
+oryzias_latipes	panel	ovalentaria	medaka
+oryzias_melastigma	exclude	fish	redundant with medaka
+oryzias_sinensis	exclude	fish	redundant with medaka
+otolemur_garnettii	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+ovis_aries	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+pan_paniscus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+pan_troglodytes	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+panthera_leo	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+panthera_pardus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+panthera_tigris_altaica	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+papio_anubis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+paramormyrops_kingsleyae	panel	teleost	elephantfish (Osteoglossomorpha)
+parus_major	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+pelodiscus_sinensis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+peromyscus_maniculatus_bairdii	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+petromyzon_marinus	panel	vertebrate	lamprey
+phascolarctos_cinereus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+phocoena_sinus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+physeter_catodon	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+podarcis_muralis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+poecilia_formosa	exclude	fish	redundant with guppy
+poecilia_latipinna	exclude	fish	redundant with guppy
+poecilia_reticulata	panel	ovalentaria	guppy
+pongo_abelii	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+procavia_capensis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+prolemur_simus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+propithecus_coquereli	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+pseudonaja_textilis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+pteropus_vampyrus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+pundamilia_nyererei	panel	cichlid	Lake Victoria haplochromine; fragmented 2014 assembly
+pygocentrus_nattereri	exclude	fish	redundant with cavefish
+rattus_norvegicus	panel	vertebrate	rat
+rhinolophus_ferrumequinum	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+rhinopithecus_bieti	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+rhinopithecus_roxellana	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+saccharomyces_cerevisiae	panel	outgroup	yeast (Compara's own outgroup)
+saimiri_boliviensis_boliviensis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+salmo_salar	exclude	fish	salmonid genome duplication; pike represents the lineage
+salmo_trutta	exclude	fish	salmonid genome duplication
+salvator_merianae	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+sander_lucioperca	panel	percomorph	pikeperch
+sarcophilus_harrisii	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+sciurus_vulgaris	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+scleropages_formosus	exclude	fish	redundant with elephantfish
+scophthalmus_maximus	panel	percomorph	turbot (flatfish)
+serinus_canaria	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+seriola_dumerili	panel	percomorph	amberjack
+seriola_lalandi_dorsalis	exclude	fish	redundant with amberjack
+sorex_araneus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+sparus_aurata	panel	percomorph	gilthead seabream
+sphenodon_punctatus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+stegastes_partitus	exclude	fish	redundant with other damselfish
+strigops_habroptila	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+struthio_camelus_australis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+sus_scrofa	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+taeniopygia_guttata	panel	vertebrate	zebra finch
+takifugu_rubripes	panel	percomorph	fugu
+terrapene_carolina_triunguis	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+tetraodon_nigroviridis	exclude	fish	redundant with fugu
+tupaia_belangeri	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+tursiops_truncatus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+urocitellus_parryii	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+ursus_americanus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+ursus_maritimus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+vicugna_pacos	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+vombatus_ursinus	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+vulpes_vulpes	exclude	tetrapod	additional tetrapod; the panel already samples this lineage
+xenopus_tropicalis	panel	vertebrate	frog
+xiphophorus_couchianus	exclude	fish	redundant with platyfish
+xiphophorus_maculatus	panel	ovalentaria	platyfish (Cyprinodontiformes)

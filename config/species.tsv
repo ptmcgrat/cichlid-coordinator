@@ -1,0 +1,21 @@
+# Species manifest for the cichlid protein phylogeny rebuild.
+# Columns (tab-separated):
+#   prefix             short code, letters/digits only, unique. Becomes the protein ID prefix (Onil_XP_...).
+#   species            binomial as you expect NCBI to report it (checked, warning only on mismatch)
+#   accession          GCF_/GCA_ accession with version (required for source=ncbi)
+#   source             ncbi | local
+#   annotation_format  gff3 | gtf   (default gff3)
+#   group              free text: lineage, ecogroup, role, ...
+#   gff_path           source=local only
+#   protein_path       source=local only
+#   notes              free text
+prefix	species	accession	source	annotation_format	group	gff_path	protein_path	notes
+Acen	Archocentrus centrarchus	GCF_007364275.1	ncbi	gff3	Cichlinae: Heroini			
+Onil	Oreochromis niloticus	GCF_001858045.2	ncbi	gff3	Oreochromini			TreeFam backbone has an older tilapia; keep separate species name
+Pmar	Pelmatolapia mariae	GCF_036321145.2	ncbi	gff3	Pelmatolapiini			
+Nbri	Neolamprologus brichardi	GCF_056152115.1	ncbi	gff3	Lamprologini			in 2018 set (Broad)
+Pmic	Perissodus microlepis	GCF_051167445.1	ncbi	gff3	Perissodini			
+Sdia	Simochromis diagramma	GCF_900408965.1	ncbi	gff3	Tropheini			
+Hbur	Haplochromis burtoni	GCF_018398535.1	ncbi	gff3	Haplochromini			in 2018 set (Broad); long-read GCA_988222625.1 pending annotation
+Mzeb	Maylandia zebra	GCF_041146795.1	ncbi	gff3	Haplochromini (Malawi)			in 2018 set (Broad/UMD)
+Acal	Astatotilapia calliptera	GCF_964374335.1	ncbi	gff3	Haplochromini (Malawi)			
