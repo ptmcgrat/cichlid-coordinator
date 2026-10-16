@@ -195,6 +195,39 @@ class TestPrimaryAssemblyOnly(unittest.TestCase):
                               s["coding_genes_without_protein"], s["duplicate_gene_ids"]), ("2", "5", "1", "0"))
 
 
+    def test_protein_shared_with_a_patch_stays_with_the_chromosome_gene(self):
+        with tempfile.TemporaryDirectory() as d:
+            L, man = setup(d)
+            dl = L.download("Onil").local
+            # selenop's only protein, XP_6.1, is also annotated on a patch copy listed later in the file
+            # (Stage 2 gave it to the patch copy, leaving the chromosome gene without a protein)
+            patch = ("NW_PATCH.1\tGnomon\tgene\t1\t500\t.\t+\t.\tID=gene-sel-p;Dbxref=GeneID:333;gene=selenop;gene_biotype=protein_coding\n"
+                     "NW_PATCH.1\tGnomon\tmRNA\t1\t500\t.\t+\t.\tID=rna-XM_6p;Parent=gene-sel-p\n"
+                     "NW_PATCH.1\tGnomon\tCDS\t1\t500\t.\t+\t0\tID=cds-XP_6p;Parent=rna-XM_6p;protein_id=XP_6.1\n")
+            (dl / "genomic.gff").write_text(GFF + patch)
+            (dl / "sequence_report.jsonl").write_text(SEQREPORT + '{"refseqAccession":"NW_PATCH.1","role":"fix-patch"}\n')
+            pr.build(L, man, species=["Onil"], say=lambda *_: None)
+            g = read_genes(L.genes_table("Onil").local)
+            self.assertEqual(g["selenop"]["chosen_protein"], "XP_6.1")
+            self.assertEqual(g["selenop"]["seqid"], "NC_1.1")
+
+    def test_protein_shared_by_two_loci_is_kept_once(self):
+        with tempfile.TemporaryDirectory() as d:
+            L, man = setup(d)
+            dl = L.download("Onil").local
+            # a pseudoautosomal-style copy: same gene and protein on a second chromosome
+            par = ("NC_2.1\tGnomon\tgene\t100\t900\t.\t+\t.\tID=gene-sel-y;Dbxref=GeneID:333;gene=selenop;gene_biotype=protein_coding\n"
+                   "NC_2.1\tGnomon\tmRNA\t100\t900\t.\t+\t.\tID=rna-XM_6y;Parent=gene-sel-y\n"
+                   "NC_2.1\tGnomon\tCDS\t100\t900\t.\t+\t0\tID=cds-XP_6y;Parent=rna-XM_6y;protein_id=XP_6.1\n")
+            (dl / "genomic.gff").write_text(GFF + par)
+            pr.build(L, man, species=["Onil"], say=lambda *_: None)
+            ids = [r["gene_id"] for r in schemas.GENES.read(L.genes_table("Onil").local)]
+            self.assertIn("Onil_333", ids)
+            self.assertNotIn("Onil_333.2", ids)
+            with open(L.proteomes().local / "stage2_summary.tsv") as fh:
+                s = next(csv.DictReader(fh, delimiter="\t"))
+            self.assertEqual((s["shared_protein_loci"], s["protein_coding_genes"], s["proteins_written"]), ("1", "5", "4"))
+
     def test_refuses_when_most_genes_would_be_skipped(self):
         with tempfile.TemporaryDirectory() as d:
             L, man = setup(d)

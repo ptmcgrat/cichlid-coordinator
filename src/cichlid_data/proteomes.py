@@ -31,7 +31,12 @@ Genes on alternate loci and patches (sequence roles alt-scaffold, fix-patch, nov
 sequence report; human GRCh38, for example) are left out: they are second copies that would look
 like recent duplications. They are counted in the QC table (non_primary_genes_skipped). Roles are
 used, not assembly-unit names, which differ between assemblies. If more than half of a species'
-genes would be skipped, the build stops. This is the one change from the pipeline's Stage 2.
+genes would be skipped, the build stops.
+
+Each protein is linked to every gene whose CDS names it (Stage 2 linked each protein to the last
+such gene only, so a protein annotated on a chromosome and on a patch was lost from the chromosome
+gene). A protein still shared by two loci after that is kept once, at the first locus, and the
+others are counted (shared_protein_loci). These are the two changes from the pipeline's Stage 2.
 """
 import csv
 import json
@@ -156,7 +161,7 @@ class Annotation:
             pkey = protein_id or transcript or cds_id
             if not pkey:
                 continue
-            p = self.proteins[pkey]
+            p = self.proteins[(pkey, gene)]       # per gene: a protein annotated at two loci keeps both links
             p["gene"], p["transcript"] = gene, transcript
             p["product"] = p["product"] or product
             tattrs = feats[transcript][2] if transcript in feats else {}
@@ -196,7 +201,7 @@ class Annotation:
             pkey = attrs.get("protein_id") or tid
             if gid not in self.genes or not pkey:
                 continue
-            p = self.proteins[pkey]
+            p = self.proteins[(pkey, gid)]
             p["gene"], p["transcript"] = gid, tid
             p["product"] = p["product"] or attrs.get("product", "")
             p["partial"] = p["partial"] or is_partial(attrs)
@@ -221,9 +226,10 @@ def select_proteins(ann, fasta, mode="complete-longest", biotypes=("protein_codi
     """-> list of per-gene result dicts, plus counters."""
     by_gene = defaultdict(list)
     stats = defaultdict(int)
-    for pkey, p in ann.proteins.items():
+    missing = set()
+    for (pkey, _gene), p in ann.proteins.items():
         if pkey not in fasta:
-            stats["cds_protein_not_in_fasta"] += 1
+            missing.add(pkey)
             continue
         desc, seq = fasta[pkey]
         low_q = "LOW QUALITY PROTEIN" in desc
@@ -233,7 +239,8 @@ def select_proteins(ann, fasta, mode="complete-longest", biotypes=("protein_codi
                                    "low_quality": low_q, "seq": seq,
                                    "product": p["product"] or desc})
 
-    linked = {pk for pk, p in ann.proteins.items() if pk in fasta}
+    stats["cds_protein_not_in_fasta"] = len(missing)
+    linked = {pk for (pk, _gene) in ann.proteins if pk in fasta}
     stats["fasta_proteins_not_in_annotation"] = sum(1 for k in fasta if k not in linked)
 
     def rank(c):
@@ -339,6 +346,19 @@ def build_species(prefix, fmt, download_dir, out_dir, species_name="", mode="com
         results = [g for g in results if g["seqid"] not in nonprimary]
         stats["protein_coding_genes"] -= len(skipped)
         stats["coding_genes_without_protein"] -= sum(1 for g in skipped if not g["chosen"])
+    # a protein annotated at two remaining loci (e.g. human X/Y pseudoautosomal genes) is kept once,
+    # at the first locus, so it doesn't appear as an identical duplicate
+    kept, seen, shared = [], set(), 0
+    for g in sorted(results, key=lambda g: (g["seqid"], g["start"])):
+        c = g["chosen"]
+        if c and c["protein"] in seen:
+            shared += 1
+            continue
+        if c:
+            seen.add(c["protein"])
+        kept.append(g)
+    results = kept
+    stats["protein_coding_genes"] -= shared
 
     ids_seen, rows, proteins = {}, [], []
     lengths, n_partial, n_lowq, n_mito, n_repl = [], 0, 0, 0, 0
@@ -405,6 +425,7 @@ def build_species(prefix, fmt, download_dir, out_dir, species_name="", mode="com
         "fasta_proteins_not_in_annotation": stats["fasta_proteins_not_in_annotation"],
         "duplicate_gene_ids": stats["duplicate_gene_ids"],
         "non_primary_genes_skipped": len(skipped),
+        "shared_protein_loci": shared,
         "skipped_biotypes": "; ".join(f"{k.split(':', 1)[1]}={v}" for k, v in sorted(stats.items())
                                       if k.startswith("skipped_biotype:")),
     }
