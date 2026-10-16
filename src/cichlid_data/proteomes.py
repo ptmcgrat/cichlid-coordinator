@@ -27,10 +27,11 @@ transcript ID is used to find the protein in the FASTA.
 Sequences are written for downstream tools: terminal '*' removed, selenocysteine U and any
 other non-standard letter replaced with X (counted in the table).
 
-Only genes on the primary assembly (chromosomes and their unplaced and unlocalized scaffolds) and
-the mitochondrion are kept. Genes on alternate loci and patches (human GRCh38, for example) are
-second copies that would look like recent duplications; they are counted in the QC table
-(non_primary_genes_skipped). This is the one change from the pipeline's Stage 2.
+Genes on alternate loci and patches (sequence roles alt-scaffold, fix-patch, novel-patch in NCBI's
+sequence report; human GRCh38, for example) are left out: they are second copies that would look
+like recent duplications. They are counted in the QC table (non_primary_genes_skipped). Roles are
+used, not assembly-unit names, which differ between assemblies. If more than half of a species'
+genes would be skipped, the build stops. This is the one change from the pipeline's Stage 2.
 """
 import csv
 import json
@@ -293,13 +294,16 @@ GENE_COLS = ["gene_id", "ncbi_gene_id", "annotation_gene_key", "symbol", "descri
 
 # =============================================================================== driver
 SUMMARY = "stage2_summary.tsv"
-KEEP_UNITS = ("Primary Assembly", "non-nuclear")     # chromosomes, their scaffolds, and the mitochondrion
+# sequence roles outside the primary assembly; identified by role, which is standard across
+# assemblies (unit names are not: human's primary unit is "Primary Assembly", mouse's "C57BL/6J")
+NONPRIMARY_ROLES = ("alt-scaffold", "fix-patch", "novel-patch")
+MAX_SKIPPED_FRACTION = 0.5
 
 
 def nonprimary_seqids(seqreport_path):
     """Sequences outside the primary assembly (alternate loci, patches), from NCBI's sequence report.
     Genes there are second copies of primary-assembly genes (e.g. human MHC haplotypes) and would
-    look like recent duplications. Empty when there is no report or no assembly units."""
+    look like recent duplications. Empty when there is no report."""
     out = set()
     if not Path(seqreport_path).is_file():
         return out
@@ -309,8 +313,7 @@ def nonprimary_seqids(seqreport_path):
                 r = json.loads(line)
             except ValueError:
                 continue
-            unit = r.get("assemblyUnit", "")
-            if unit and unit not in KEEP_UNITS:
+            if r.get("role", "") in NONPRIMARY_ROLES:
                 out |= {r[k] for k in ("refseqAccession", "genbankAccession", "sequenceName") if r.get(k)}
     return out
 
@@ -329,6 +332,9 @@ def build_species(prefix, fmt, download_dir, out_dir, species_name="", mode="com
     mito = mito_seqids(sp / "sequence_report.jsonl")
     nonprimary = nonprimary_seqids(sp / "sequence_report.jsonl")
     skipped = [g for g in results if g["seqid"] in nonprimary]
+    if results and len(skipped) > MAX_SKIPPED_FRACTION * len(results):
+        raise RuntimeError(f"{prefix}: {len(skipped)} of {len(results)} genes would be skipped as alternate "
+                           f"loci or patches; refusing (check {sp / 'sequence_report.jsonl'})")
     if skipped:                                  # alternate loci and patches: not part of the proteome
         results = [g for g in results if g["seqid"] not in nonprimary]
         stats["protein_coding_genes"] -= len(skipped)

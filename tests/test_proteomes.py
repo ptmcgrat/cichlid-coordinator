@@ -178,9 +178,10 @@ class TestPrimaryAssemblyOnly(unittest.TestCase):
                    "NT_ALT.1\tGnomon\tCDS\t150\t900\t.\t+\t0\tID=cds-XP_1.1b;Parent=rna-XM_alt.1;protein_id=XP_1.1\n"
                    "NW_PATCH.1\tGnomon\tgene\t1\t500\t.\t+\t.\tID=gene-p;Dbxref=GeneID:999;gene=patchy;gene_biotype=protein_coding\n")
             (dl / "genomic.gff").write_text(GFF + alt)
+            # the primary unit is named after the strain, as in mouse GRCm39: roles decide, not names
             (dl / "sequence_report.jsonl").write_text(
-                SEQREPORT.replace('"Mitochondrion"}', '"Mitochondrion","assemblyUnit":"non-nuclear"}')
-                         .replace('"Chromosome"}', '"Chromosome","assemblyUnit":"Primary Assembly"}')
+                SEQREPORT.replace('"Mitochondrion"}', '"Mitochondrion","assemblyUnit":"non-nuclear","role":"assembled-molecule"}')
+                         .replace('"Chromosome"}', '"Chromosome","assemblyUnit":"C57BL/6J","role":"assembled-molecule"}')
                 + '{"refseqAccession":"NT_ALT.1","assemblyUnit":"ALT_REF_LOCI_1","role":"alt-scaffold"}\n'
                 + '{"refseqAccession":"NW_PATCH.1","assemblyUnit":"PATCHES","role":"fix-patch"}\n')
             pr.build(L, man, species=["Onil"], say=lambda *_: None)
@@ -192,6 +193,20 @@ class TestPrimaryAssemblyOnly(unittest.TestCase):
                 s = next(csv.DictReader(fh, delimiter="\t"))
             self.assertEqual((s["non_primary_genes_skipped"], s["protein_coding_genes"],
                               s["coding_genes_without_protein"], s["duplicate_gene_ids"]), ("2", "5", "1", "0"))
+
+
+    def test_refuses_when_most_genes_would_be_skipped(self):
+        with tempfile.TemporaryDirectory() as d:
+            L, man = setup(d)
+            dl = L.download("Onil").local
+            (dl / "sequence_report.jsonl").write_text(
+                '{"refseqAccession":"NC_1.1","role":"alt-scaffold"}\n{"refseqAccession":"NC_MT.1","role":"assembled-molecule",'
+                '"assignedMoleculeLocationType":"Mitochondrion"}\n')
+            out = []
+            summaries, failed = pr.build(L, man, species=["Onil"], say=out.append)
+            self.assertEqual(failed, ["Onil"])
+            self.assertIn("would be skipped as alternate loci or patches; refusing", out[-1])
+            self.assertFalse(L.proteome("Onil").local.exists())
 
 
 class TestCoordinatorAdditions(unittest.TestCase):
