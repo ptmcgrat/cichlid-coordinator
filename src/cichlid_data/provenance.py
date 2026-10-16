@@ -95,7 +95,8 @@ class SourceRecord:
         typ = ("ncbi_refseq" if acc.startswith("GCF_") else "ncbi_genbank" if acc.startswith("GCA_")
                else "authors" if row.get("source") == "local" else row.get("source", ""))
         files = {}
-        for info in (d.get("files") or {}).values():
+        raw = d.get("files")
+        for info in (raw.values() if isinstance(raw, dict) else []):
             if isinstance(info, dict) and info.get("file"):
                 files[info["file"]] = {"bytes": info.get("bytes"), "md5": info.get("md5")}
         return cls(name=row.get("species", ""), type=typ, accession=acc,
@@ -105,12 +106,36 @@ class SourceRecord:
                    recorded=d.get("downloaded", ""), recorded_by="pipeline stage 1")
 
 
+def is_stage1(path):
+    """Stage 1's download.json (a species download), as opposed to other scripts' download.json."""
+    try:
+        d = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return False
+    return isinstance(d, dict) and isinstance(d.get("manifest_row"), dict)
+
+
+def download_date(path):
+    """The download time recorded in any script's download.json, if it has one."""
+    try:
+        d = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return ""
+    if not isinstance(d, dict):
+        return ""
+    for k in ("downloaded", "retrieved", "date", "time"):
+        if isinstance(d.get(k), str) and d[k]:
+            return d[k]
+    return ""
+
+
 def read_record(folder):
-    """The source record of a folder: its source.json, or Stage 1's download.json. None if neither."""
+    """The source record of a folder: its source.json, or Stage 1's download.json for a species
+    download. None if neither (other scripts' download.json files are not source records)."""
     folder = Path(folder)
     if (folder / RECORD).is_file():
         return SourceRecord.from_dict(json.loads((folder / RECORD).read_text()))
-    if (folder / STAGE1_RECORD).is_file():
+    if (folder / STAGE1_RECORD).is_file() and is_stage1(folder / STAGE1_RECORD):
         return SourceRecord.from_download_json(folder / STAGE1_RECORD)
     return None
 

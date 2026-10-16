@@ -4,7 +4,7 @@ from pathlib import Path
 
 from . import __version__
 from .config import config_dir
-from .provenance import SourceRecord, inventory, load_sources, read_record, verify
+from .provenance import STAGE1_RECORD, SourceRecord, download_date, inventory, load_sources, read_record, verify
 
 AREAS = ("Inputs/Families", "Inputs/Annotations", "Inputs/Expression", "Inputs/Populations",
          "Inputs/Proteins/local_sources")
@@ -26,6 +26,9 @@ def write_records(layout, overwrite=False, md5_limit=1 << 30, say=print, sources
         rec.files = inventory(folder, md5_limit)
         rec.recorded = time.strftime("%Y-%m-%dT%H:%M:%S%z")
         rec.recorded_by = f"cichlid-data {__version__}"
+        if not rec.retrieved and (folder / STAGE1_RECORD).is_file():
+            rec.retrieved = download_date(folder / STAGE1_RECORD)          # the download script's own date
+            rec.notes = (rec.notes + "; " if rec.notes else "") + "download details in download.json"
         if not rec.retrieved:
             rec.retrieved = "before " + rec.recorded[:10] + " (recorded later)"
         rec.write(folder)

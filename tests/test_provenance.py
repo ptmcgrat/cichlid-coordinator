@@ -34,6 +34,25 @@ class TestProvenance(unittest.TestCase):
         self.assertIn("GCF_041146795.1", r.url)
         self.assertEqual(verify(d, r), [])
 
+    def test_other_download_json_is_not_a_record(self):
+        L = Layout(self.root / "data", "fake:")
+        hpa = L.expression("HPA").local
+        write(hpa / "rna_single_cell_type.tsv.zip", "z")
+        (hpa / "download.json").write_text(json.dumps({"downloaded": "2026-10-09T10:00:00Z", "files": 2}))
+        blumer = L.population("Blumer2025").local
+        write(blumer / "chr10.vcf.gz", "v")
+        (blumer / "download.json").write_text(json.dumps({"files": ["chr10.vcf.gz"]}))
+        self.assertIsNone(read_record(hpa))                                       # not mistaken for Stage 1's
+        self.assertIsNone(read_record(blumer))
+        sources = self.root / "sources.toml"
+        sources.write_text('[[source]]\npath = "Inputs/Expression/HPA"\nname = "HPA"\n'
+                           '[[source]]\npath = "Inputs/Populations/Blumer2025"\nname = "Blumer"\n')
+        self.assertEqual(write_records(L, sources_file=sources, say=lambda *_: None), 2)
+        rec = read_record(hpa)
+        self.assertEqual((rec.retrieved, list(rec.files)), ("2026-10-09T10:00:00Z", ["rna_single_cell_type.tsv.zip"]))
+        self.assertIn("download.json", rec.notes)
+        self.assertEqual(check_records(L, sources_file=sources, say=lambda *_: None), 0)
+
     def test_inventory_and_verify(self):
         d = self.root / "res"
         write(d / "small.txt", "aaaa")
