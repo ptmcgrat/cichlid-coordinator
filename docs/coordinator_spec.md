@@ -35,7 +35,7 @@ cichlid-coordinator/
 │   ├── provenance.py        SourceRecord, checksums
 │   ├── schemas.py           boundary file formats: readers, writers, validators
 │   ├── proteomes.py         one protein per gene
-│   ├── downloaders/         base.py, ncbi.py, local.py, families.py, annotations.py, expression.py, populations.py
+│   ├── downloaders/         ncbi.py, local.py (done); families.py, annotations.py, expression.py, populations.py
 │   ├── migrate.py           one-time move from the old layout
 │   └── cli.py               the cichlid-data command
 ├── tests/                   all tests run offline against LocalBackend
@@ -199,8 +199,8 @@ Each subclass of `Downloader` implements `fetch()` and `verify()`; the base clas
 
 | Module | Sources |
 |---|---|
-| `ncbi.py` | NCBI Datasets genomes and annotations (GFF3, proteins, sequence report), resumable, checksum-verified |
-| `local.py` | Annotations from authors or other non-RefSeq sources, converted to the same files (today's `prepare_local_species.py`, including `--proteins`) |
+| `ncbi.py` | Done (v0.6.0): the pipeline's Stage 1, moved over unchanged. Genomes and annotations for every `species.tsv` row: from NCBI Datasets (`source=ncbi`; verified against NCBI's checksums, resumable, checked against NCBI's metadata first) or copied from local files (`source=local`; paths may be relative to the data root). A species missing locally but in the cloud is pulled rather than fetched again. `cichlid-data download genomes [--species ...] [--check-only] [--force] [--push]`, then the catalog is rebuilt |
+| `local.py` | Done (v0.6.0): `prepare_local_species.py`, moved over unchanged. Converts a non-NCBI annotation into the download files (`cichlid-data prepare-local --prefix P --cds ... [--proteins ...]`; output defaults to `Inputs/Proteins/local_sources/<P>/prepared/`) |
 | `families.py` | TreeFam 9 (HMMs, trees); Ensembl Compara dumps and pruning to the panel |
 | `annotations.py` | GO (go-basic.obo, GAFs), PANTHER classification, Ensembl names, 2018 legacy files |
 | `expression.py` | HPA, Bgee, Zebrahub, Daniocell, Brawand (nf-core outputs), with their summaries |

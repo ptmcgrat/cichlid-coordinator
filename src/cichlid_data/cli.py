@@ -8,6 +8,8 @@
     cichlid-data pull PATTERN... [--force] [--dry-run]
     cichlid-data push PATTERN... [--force] [--dry-run]
     cichlid-data ensure RELATIVE_PATH
+    cichlid-data download genomes [--species P,..] [--check-only] [--push]   # Stage 1: NCBI or local files
+    cichlid-data prepare-local --prefix P --cds ... # convert a non-NCBI annotation (Etroplus)
     cichlid-data proteomes [--species P,..] [--push] # one protein per gene, for each species
     cichlid-data validate PATH... [--kind K]        # check files against their schemas
     cichlid-data catalog build|show|missing|validate # the species catalog (--method, --role)
@@ -50,6 +52,9 @@ def build(args, settings):
 
 
 def main(argv=None, backend=None, settings=None):
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:1] == ["prepare-local"]:          # every option belongs to the preparation tool
+        return prepare_local(argv[1:], settings)
     ap = argparse.ArgumentParser(prog="cichlid-data", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -73,6 +78,15 @@ def main(argv=None, backend=None, settings=None):
         p.add_argument("--dry-run", action="store_true")
     p = sub.add_parser("ensure")
     p.add_argument("path")
+    p = sub.add_parser("download", help="download inputs")
+    p.add_argument("source", choices=["genomes"])
+    p.add_argument("--species", help="comma-separated prefixes (default: every species in species.tsv)")
+    p.add_argument("--check-only", action="store_true", help="check each species against NCBI; download nothing")
+    p.add_argument("--force", action="store_true", help="download again even if present and verified")
+    p.add_argument("--keep-zip", action="store_true")
+    p.add_argument("--push", action="store_true", help="push the downloads to the cloud afterwards")
+    p.add_argument("--no-fetch", action="store_true", help="don't pull species already in the cloud")
+    sub.add_parser("prepare-local", help="convert a non-NCBI annotation (e.g. Etroplus); options as prepare_local_species")
     p = sub.add_parser("proteomes", help="one protein per gene, for each species")
     p.add_argument("--species", help="comma-separated prefixes (default: every species in species.tsv)")
     p.add_argument("--select", choices=["complete-longest", "longest"], default="complete-longest")
@@ -118,6 +132,30 @@ def main(argv=None, backend=None, settings=None):
         except IndexError:
             sys.exit(f"`where {args.kind}` needs an argument (e.g. a species prefix or name)")
         print(p.cloud if args.cloud else p.local)
+        return 0
+    if args.cmd == "download":
+        from .catalog import Catalog
+        from .config import config_dir
+        from .downloaders import ncbi
+        store = None if args.no_fetch else Store(L, B, context="download")
+        try:
+            summary, failed = ncbi.download(L, config_dir() / "species.tsv",
+                                            species=args.species.split(",") if args.species else None,
+                                            check_only=args.check_only, force=args.force, keep_zip=args.keep_zip,
+                                            store=store)
+        except ncbi.ManifestError as e:
+            sys.exit(str(e))
+        if not args.check_only:
+            C = Catalog.build(L)
+            if not C.validate()[0]:
+                C.write(L)
+                print(f"Catalog updated: {sum(s.status in ('downloaded', 'proteome ready') for s in C.organisms.values())} "
+                      f"species downloaded")
+            if args.push and any(r["status"] == "downloaded" for r in summary):
+                res = Store(L, B, context="download").push("proteins/downloads")
+                print("pushed proteins/downloads: " + ", ".join(sorted(set(res.values()))))
+        if failed:
+            sys.exit(f"{len(failed)} species failed: {', '.join(failed)}")
         return 0
     if args.cmd == "proteomes":
         from .catalog import Catalog
@@ -232,6 +270,21 @@ def main(argv=None, backend=None, settings=None):
             Migration(L, B).run(lambda: Store(L, B, context="migrate"), apply=args.apply, cleanup=args.cleanup)
     except (TransferError, KeyError) as e:
         sys.exit(str(e))
+    return 0
+
+
+def prepare_local(argv, settings=None):
+    """Run the local-species preparation; --outdir defaults to the species' local-source folder."""
+    from .downloaders import local
+    argv = list(argv)
+    if "--outdir" not in argv and "--prefix" in argv and argv.index("--prefix") + 1 < len(argv):
+        try:
+            s = settings or Settings.load()
+        except ConfigError as e:
+            sys.exit(str(e))
+        prefix = argv[argv.index("--prefix") + 1]
+        argv += ["--outdir", str(Layout(s.local_root, s.cloud_remote).local_source(prefix).local / "prepared")]
+    local.main(argv)
     return 0
 
 
