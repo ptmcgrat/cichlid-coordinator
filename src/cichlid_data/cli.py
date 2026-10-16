@@ -8,6 +8,7 @@
     cichlid-data pull PATTERN... [--force] [--dry-run]
     cichlid-data push PATTERN... [--force] [--dry-run]
     cichlid-data ensure RELATIVE_PATH
+    cichlid-data proteomes [--species P,..] [--push] # one protein per gene, for each species
     cichlid-data validate PATH... [--kind K]        # check files against their schemas
     cichlid-data catalog build|show|missing|validate # the species catalog (--method, --role)
     cichlid-data provenance write|check|show        # source records for every input
@@ -72,6 +73,12 @@ def main(argv=None, backend=None, settings=None):
         p.add_argument("--dry-run", action="store_true")
     p = sub.add_parser("ensure")
     p.add_argument("path")
+    p = sub.add_parser("proteomes", help="one protein per gene, for each species")
+    p.add_argument("--species", help="comma-separated prefixes (default: every species in species.tsv)")
+    p.add_argument("--select", choices=["complete-longest", "longest"], default="complete-longest")
+    p.add_argument("--force", action="store_true", help="rebuild even if up to date")
+    p.add_argument("--push", action="store_true", help="push the proteomes to the cloud afterwards")
+    p.add_argument("--no-fetch", action="store_true", help="don't pull missing downloads from the cloud")
     p = sub.add_parser("validate", help="check files against their schemas")
     p.add_argument("paths", nargs="+")
     p.add_argument("--kind", choices=["genes", "assign", "orthologs", "proteome", "run", "family"])
@@ -111,6 +118,24 @@ def main(argv=None, backend=None, settings=None):
         except IndexError:
             sys.exit(f"`where {args.kind}` needs an argument (e.g. a species prefix or name)")
         print(p.cloud if args.cloud else p.local)
+        return 0
+    if args.cmd == "proteomes":
+        from .catalog import Catalog
+        from .config import config_dir
+        from .proteomes import build as build_proteomes
+        store = None if args.no_fetch else Store(L, B, context="proteomes")
+        summaries, failed = build_proteomes(L, config_dir() / "species.tsv",
+                                            species=args.species.split(",") if args.species else None,
+                                            mode=args.select, force=args.force, store=store)
+        C = Catalog.build(L)
+        if not C.validate()[0]:
+            C.write(L)
+            print(f"Catalog updated: {sum(s.status == 'proteome ready' for s in C.organisms.values())} proteomes ready")
+        if args.push and summaries:
+            res = Store(L, B, context="proteomes").push("proteins/proteomes")
+            print("pushed proteins/proteomes: " + ", ".join(sorted(set(res.values()))))
+        if failed:
+            sys.exit(f"{len(failed)} species failed: {', '.join(failed)}")
         return 0
     if args.cmd == "validate":
         from .schemas import SchemaError, validate as _validate
