@@ -76,6 +76,9 @@ class Registry:
         yield U("families/TreeFam9/trees", f"{FAMILIES}/TreeFam9/trees", "immutable", "tar",
                 description="TreeFam 9 alignments and trees")
         yield U("families/TreeFam9/protein_to_species", f"{FAMILIES}/TreeFam9/protein_to_species.txt", "immutable", "files")
+        for res in ("TreeFam9", "Compara116"):
+            yield U(f"families/{res}/source", f"{FAMILIES}/{res}/source.json", "regenerable", "files",
+                    description=f"{res} source record")
         yield U("families/Compara116/dumps", f"{FAMILIES}/Compara116/dumps", "on_demand", "files",
                 description="raw Ensembl Compara dumps")
         yield U("families/Compara116/prepared", f"{FAMILIES}/Compara116/prepared", "regenerable", "tar",

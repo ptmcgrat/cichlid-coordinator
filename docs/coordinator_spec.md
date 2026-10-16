@@ -22,9 +22,9 @@ cichlid-coordinator/
 ├── pyproject.toml           package cichlid_data; console script cichlid-data
 ├── config/
 │   ├── species.tsv          project species (edited by hand)
-│   ├── species_sets.yaml    which species each method uses
+│   ├── species_sets.toml    which species each method uses
 │   ├── compara_panel.tsv    Compara reference panel (role per Ensembl species)
-│   └── sources.yaml         every external resource: URL/accession, version, licence, citation
+│   └── sources.toml         every external resource: path, URL/accession, version, licence, citation
 ├── src/cichlid_data/
 │   ├── __init__.py          public API
 │   ├── config.py            Settings
@@ -109,7 +109,7 @@ A named, transferable piece of the tree, with a policy:
 
 | Policy | Meaning | Examples |
 |---|---|---|
-| `immutable` | Written once; push refuses to overwrite a different version | downloads, Families, Expression raw data |
+| `immutable` | Existing files never change. File-by-file units may gain new files (e.g. a `source.json`); tar-packed units can't change at all | downloads, TreeFam 9, local species sources |
 | `regenerable` | Pipeline output; may be replaced by a newer run | proteomes, Results/*, Analyses/* |
 | `on_demand` | Large; never pulled as part of a bulk pull, only by `ensure` | population VCFs, Daniocell raw data |
 
@@ -133,7 +133,7 @@ Every transfer is logged (`<root>/.cichlid-data/transfers.log`: time, user, host
 
 ### Catalog and Species (`catalog.py`)
 
-`Catalog.build()` writes `catalog.json` from `species.tsv`, `species_sets.yaml` and the download records; `Catalog.load()` reads it.
+`Catalog.build()` writes `catalog.json` from `species.tsv`, `species_sets.toml` and the download records; `Catalog.load()` reads it.
 
 `Species` fields: `prefix`, `species`, `taxon_id`, `role` (`project`, `relative`, `reference`, `outgroup`), `source` (a `SourceRecord`), `files` (proteome, genes table, with checksums), `counts` (genes, proteins), `used_by` (method names).
 
@@ -141,7 +141,11 @@ Queries: `catalog.species(role=..., method=...)`, `catalog[prefix]`.
 
 ### SourceRecord (`provenance.py`)
 
-Written as `source.json` beside every download:
+Configuration files are TOML (read by Python's standard library, so the package has no dependencies).
+
+`config/sources.toml` describes every external resource (path, name, type, version, URL or accession, licence, citation; unknowns marked "to confirm"). `cichlid-data provenance write` turns each entry into a `source.json` beside the data, with an inventory of its files (sizes, and MD5 checksums for files up to 1 GB; larger files by size). Species downloads are described by Stage 1's own `download.json` (accession, NCBI metadata, checksums, date), which `read_record()` reads as a `SourceRecord`. `provenance check` verifies every record (sizes; `--deep` also checksums), and reports input folders with no description.
+
+The record:
 
 ```json
 {"name": "...", "type": "ncbi_refseq | ensembl | treefam | authors | url",

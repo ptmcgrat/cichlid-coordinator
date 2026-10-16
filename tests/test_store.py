@@ -62,8 +62,20 @@ class TestStore(unittest.TestCase):
         touch_later(a.family_resource("TreeFam9").local / "hmm/TreeFam9")
         with self.assertRaises(TransferError) as err:
             self.e.store(a).push("families/TreeFam9/hmm")
-        self.assertIn("REFUSED (immutable", str(err.exception))
+        self.assertIn("REFUSED (", str(err.exception))
+        self.assertIn("immutable", str(err.exception))
         self.assertEqual((self.e.cloud / "Inputs/Families/TreeFam9/hmm/TreeFam9").read_text(), "hmm v1")
+        # adding a file to an immutable file-by-file unit is allowed (e.g. a source.json)
+        (a.family_resource("TreeFam9").local / "hmm/TreeFam9").write_text("hmm v1")       # undo the edit
+        write(a.family_resource("TreeFam9").local / "hmm/README.txt", "notes")
+        self.assertEqual(self.e.store(a).push("families/TreeFam9/hmm"), {"families/TreeFam9/hmm": "uploaded"})
+        self.assertEqual((self.e.cloud / "Inputs/Families/TreeFam9/hmm/README.txt").read_text(), "notes")
+        # tar-packed immutable units stay strict
+        write(a.download("Mzeb").local / "protein.faa", "P")
+        self.e.store(a).push("proteins/downloads")
+        write(a.download("Mzeb").local / "extra.txt", "x")
+        with self.assertRaises(TransferError):
+            self.e.store(a).push("proteins/downloads")
         # a stale-looking but fresh lock blocks a push
         write(b.proteome("Hbur").local, ">Hbur_1\nM\n")
         lock = self.e.cloud / ".cichlid-data/locks/proteins__proteomes.lock"

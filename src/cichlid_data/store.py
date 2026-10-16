@@ -70,15 +70,22 @@ class LocalBackend:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text)
 
-    def upload(self, local, rel_dir):
-        """Copy a local file into a cloud folder, or a local folder's contents into it."""
+    def upload(self, local, rel_dir, immutable=False):
+        """Copy a local file into a cloud folder, or a local folder's contents into it. With
+        immutable, refuse (before copying anything) if an existing cloud file would change."""
         dest = self._p(rel_dir)
-        dest.mkdir(parents=True, exist_ok=True)
         local = Path(local)
-        if local.is_dir():
-            shutil.copytree(local, dest, dirs_exist_ok=True)
-        else:
-            shutil.copy2(local, dest / local.name)
+        pairs = ([(f, dest / f.relative_to(local)) for f in local.rglob("*") if f.is_file()] if local.is_dir()
+                 else [(local, dest / local.name)])
+        if immutable:
+            changed = [str(t.relative_to(self.root)) for f, t in pairs if t.exists() and t.read_bytes() != f.read_bytes()]
+            if changed:
+                raise TransferError(f"immutable: would modify {', '.join(changed[:5])}")
+        dest.mkdir(parents=True, exist_ok=True)
+        for f, t in pairs:
+            t.parent.mkdir(parents=True, exist_ok=True)
+            if not (immutable and t.exists()):
+                shutil.copy2(f, t)
 
     def download(self, rel, local_dir):
         """Copy a cloud file into a local folder, or a cloud folder's contents into it."""
@@ -150,9 +157,12 @@ class RcloneBackend:
     def write_text(self, rel, text):
         self._ok(self.run(["rcat", self._u(rel)], stdin=text), f"writing {rel}")
 
-    def upload(self, local, rel_dir):
-        flags = ["--multi-thread-streams", "16", "--multi-thread-cutoff", "100Mi"]
-        self._ok(self.run(["copy"] + flags + [str(local), self._u(rel_dir)]), f"upload of {local}")
+    def upload(self, local, rel_dir, immutable=False):
+        flags = ["--multi-thread-streams", "16", "--multi-thread-cutoff", "100Mi"] + (["--immutable"] if immutable else [])
+        r = self.run(["copy"] + flags + [str(local), self._u(rel_dir)])
+        if immutable and r.returncode != 0 and "immutable" in (r.stderr or "").lower():
+            raise TransferError(f"immutable: would modify files under {rel_dir}: {r.stderr.strip()[-300:]}")
+        self._ok(r, f"upload of {local}")
 
     def download(self, rel, local_dir):
         """rclone copy puts a file into the folder, or a folder's contents into it (as LocalBackend)."""
@@ -175,6 +185,9 @@ class RcloneBackend:
         if r.returncode == 0:
             return
         parent, _, name = src.strip("/").rpartition("/")
+        if not self.exists(src) and self.exists(dst):            # Dropbox finished it despite the error
+            logger.warning("move of %s reported an error but completed", src)
+            return
         if (name + "/") not in self.list(parent):
             self._ok(r, f"moving {src}")                        # a file: nothing else to try
         logger.warning("whole-folder move of %s failed (%s); moving its files individually", src,
@@ -376,9 +389,10 @@ class Store:
         if local == cloud:
             self.state[key] = local
             return "up to date"
-        if cloud is not None and unit.policy == "immutable" and not self.force:
+        additions_only = unit.policy == "immutable" and unit.packing == "files" and not self.force
+        if cloud is not None and unit.policy == "immutable" and unit.packing != "files" and not self.force:
             return "REFUSED (immutable: the cloud already has a different version; use --force to replace it)"
-        if cloud is not None and cloud != last and not self.force:
+        if cloud is not None and cloud != last and not self.force and not additions_only:
             return "CONFLICT (cloud changed since last sync; pull first, or --force to overwrite the cloud)"
         if self.dry:
             return "would upload"
@@ -387,7 +401,12 @@ class Store:
             parent = self.layout.local_root / unit.parent
             if unit.packing == "files":
                 src = parent / unit.base
-                self.backend.upload(src, unit.rel if src.is_dir() else unit.parent)
+                try:
+                    self.backend.upload(src, unit.rel if src.is_dir() else unit.parent, immutable=additions_only)
+                except TransferError as e:
+                    if additions_only and "immutable" in str(e):
+                        return f"REFUSED ({e}; existing files of an immutable unit can't change; use --force)"
+                    raise
             else:
                 with tempfile.TemporaryDirectory() as tmp:
                     tar = Path(tmp) / Path(unit.cloud_tar(shard)).name

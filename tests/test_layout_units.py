@@ -74,7 +74,8 @@ class TestRegistry(unittest.TestCase):
             u, _ = R.for_path("Inputs/Expression/raw/zebrahub/x.h5ad")
             self.assertEqual((u.name, u.policy), ("expression/raw", "on_demand"))  # the longer match wins
             self.assertEqual({u.name for u in R.matching("families/TreeFam9/*")},
-                             {"families/TreeFam9/hmm", "families/TreeFam9/trees", "families/TreeFam9/protein_to_species"})
+                             {"families/TreeFam9/hmm", "families/TreeFam9/trees", "families/TreeFam9/protein_to_species",
+                              "families/TreeFam9/source"})
 
 
 if __name__ == "__main__":

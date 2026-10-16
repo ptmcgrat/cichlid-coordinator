@@ -8,6 +8,7 @@
     cichlid-data pull PATTERN... [--force] [--dry-run]
     cichlid-data push PATTERN... [--force] [--dry-run]
     cichlid-data ensure RELATIVE_PATH
+    cichlid-data provenance write|check|show        # source records for every input
     cichlid-data migrate [--apply] [--cleanup]       # moves the inputs to the new layout
 
 PATTERN is a unit name or a glob over unit names, e.g. "results/Compara2026/*".
@@ -69,6 +70,12 @@ def main(argv=None, backend=None, settings=None):
         p.add_argument("--dry-run", action="store_true")
     p = sub.add_parser("ensure")
     p.add_argument("path")
+    p = sub.add_parser("provenance", help="source records for every input")
+    p.add_argument("action", choices=["write", "check", "show"])
+    p.add_argument("path", nargs="?", help="show: a folder relative to the data root")
+    p.add_argument("--overwrite", action="store_true", help="write: replace existing records")
+    p.add_argument("--md5-limit-gb", type=float, default=1.0, help="write: checksum files up to this size")
+    p.add_argument("--deep", action="store_true", help="check: also compare checksums")
     p = sub.add_parser("migrate")
     p.add_argument("--apply", action="store_true")
     p.add_argument("--cleanup", action="store_true")
@@ -94,6 +101,25 @@ def main(argv=None, backend=None, settings=None):
         except IndexError:
             sys.exit(f"`where {args.kind}` needs an argument (e.g. a species prefix or name)")
         print(p.cloud if args.cloud else p.local)
+        return 0
+    if args.cmd == "provenance":
+        import json as _json
+        from .provenance import read_record
+        from .provenance_cmd import check_records, write_records
+        if args.action == "write":
+            write_records(L, overwrite=args.overwrite, md5_limit=int(args.md5_limit_gb * (1 << 30)))
+        elif args.action == "check":
+            if check_records(L, deep=args.deep):
+                sys.exit("provenance check found problems")
+        else:
+            if not args.path:
+                sys.exit("provenance show needs a folder, e.g. Inputs/Families/TreeFam9")
+            rec = read_record(L.path(args.path).local)
+            if rec is None:
+                sys.exit(f"no source record in {args.path}")
+            d = rec.to_dict()
+            d["files"] = f"{len(rec.files)} files"
+            print(_json.dumps(d, indent=2))
         return 0
     if args.cmd == "env":
         for k, v in L.env().items():

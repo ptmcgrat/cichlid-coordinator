@@ -1,0 +1,102 @@
+# Every external input resource: where it lives (relative to the data root) and what it is.
+# `cichlid-data provenance write` turns each entry into a source.json beside the data, with an
+# inventory of its files. Species downloads are described by their own download.json (Stage 1).
+# Fields marked "to confirm" should be checked against the provider's site and filled in.
+
+[[source]]
+path = "Inputs/Families/TreeFam9"
+name = "TreeFam 9 (HMM library, alignments and trees)"
+type = "treefam"
+version = "9"
+url = "http://www.treefam.org/download"
+licence = "to confirm (TreeFam terms of use)"
+citation = "Schreiber F, Patricio M, Muffato M, Pignatelli M, Bateman A (2014) TreeFam v9: a new website, more species and orthology-on-the-fly. Nucleic Acids Res 42:D922-5"
+
+[[source]]
+path = "Inputs/Families/Compara116"
+name = "Ensembl Compara release 116 gene trees (dumps, and the trees pruned to our panel)"
+type = "ensembl"
+version = "116"
+url = "https://ftp.ensembl.org/pub/release-116/"
+licence = "Ensembl data are available without restriction (ensembl.org/info/about/legal)"
+citation = "Cite the Ensembl paper for release 116 (ensembl.org/info/about/publications.html)"
+notes = "prepared/ is derived: Compara trees pruned to config/compara_panel.tsv"
+
+[[source]]
+path = "Inputs/Annotations/GO"
+name = "Gene Ontology: go-basic.obo and the human and zebrafish (ZFIN) annotation files"
+type = "url"
+url = "https://current.geneontology.org/"
+licence = "CC BY 4.0"
+citation = "The Gene Ontology Consortium (2023) The Gene Ontology knowledgebase in 2023. Genetics 224:iyad031"
+
+[[source]]
+path = "Inputs/Annotations/PANTHER"
+name = "PANTHER sequence classification files (human, zebrafish)"
+type = "url"
+url = "https://data.pantherdb.org/ftp/sequence_classifications/current_release/"
+licence = "to confirm (pantherdb.org)"
+citation = "Thomas PD et al. (2022) PANTHER: Making genome-scale phylogenetics accessible to all. Protein Sci 31:8-22"
+
+[[source]]
+path = "Inputs/Expression/HPA"
+name = "Human Protein Atlas: single cell type RNA data"
+type = "url"
+url = "https://www.proteinatlas.org/about/download"
+licence = "CC BY-SA 3.0"
+citation = "Human Protein Atlas (proteinatlas.org): cite the atlas version used"
+
+[[source]]
+path = "Inputs/Expression/Bgee"
+name = "Bgee: adult zebrafish tissue expression"
+type = "url"
+url = "https://www.bgee.org/download"
+licence = "CC0"
+citation = "Bastian FB et al. (2021) The Bgee suite: integrated curated expression atlas and comparative transcriptomics in animals. Nucleic Acids Res 49:D831-D847"
+
+[[source]]
+path = "Inputs/Expression/Zebrahub"
+name = "Zebrahub: zebrafish developmental single-cell atlas (summarized by stage and cell type)"
+type = "url"
+url = "https://zebrahub.ds.czbiohub.org/"
+licence = "to confirm"
+citation = "Lange M et al. (2024) Zebrahub: multimodal zebrafish developmental atlas. Cell (to confirm volume and pages)"
+
+[[source]]
+path = "Inputs/Expression/Daniocell"
+name = "Daniocell: zebrafish developmental single-cell atlas (summarized by stage and cell type)"
+type = "url"
+url = "https://daniocell.nichd.nih.gov/"
+licence = "to confirm"
+citation = "Sur A et al. (2023) Single-cell analysis of shared signatures and transcriptional diversity during zebrafish development. Dev Cell (to confirm volume and pages)"
+
+[[source]]
+path = "Inputs/Expression/Brawand"
+name = "Brawand et al. tissue RNA-seq (M. zebra), quantified with nf-core/rnaseq"
+type = "url"
+accession = "PRJNA77743"
+url = "https://www.ncbi.nlm.nih.gov/bioproject/PRJNA77743"
+licence = "to confirm (public sequence data)"
+citation = "Brawand D et al. (2014) The genomic substrate for adaptive radiation in African cichlid fish. Nature 513:375-381"
+
+[[source]]
+path = "Inputs/Populations/Blumer2025"
+name = "Blumer et al. 2025 Lake Malawi population genomes (VCFs on fAstCal1.2), supplementary tables, reference"
+type = "url"
+url = "https://doi.org/10.1126/science.adr9961"
+licence = "to confirm (data availability statement of the paper)"
+citation = "Blumer LM et al. (2025) Science, doi:10.1126/science.adr9961 (to confirm author list and pages)"
+
+[[source]]
+path = "Inputs/Proteins/local_sources/Esur"
+name = "Etroplus suratensis genome and annotation (authors' coding sequences, functional table, and proteins)"
+type = "authors"
+url = "https://figshare.com/articles/online_resource/_b_i_Etroplus_suratensis_i_b_b_genome_and_annotation_b_/26303968/3"
+licence = "CC BY 4.0 (figshare 26303968); protein file supplied by the authors"
+citation = "Katneni VK et al. (2024) Genome assembly at chromosome scale with telomere ends for Pearlspot, Etroplus suratensis. Sci Data 11 (to confirm article number)"
+
+[[source]]
+path = "Archive/Project2018"
+name = "The 2018 resource's own files: protein sets, combined protein file and TreeFam scan, trees"
+type = "project"
+citation = "Ramakrishnan Varadarajan A, Mopuri R, Streelman JT, McGrath PT (2018) Genome-wide protein phylogenies for four African cichlid species. BMC Evol Biol 18:1"

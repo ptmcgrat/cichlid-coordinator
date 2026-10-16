@@ -38,6 +38,12 @@ elif cmd == "rcat":
     f.write_text(sys.stdin.read())
 elif cmd == "copy":
     src, dst = p(rest[0]), p(rest[1])
+    if "--immutable" in sys.argv:                              # as rclone: existing files must not change
+        pairs = [(x, dst / x.relative_to(src)) for x in src.rglob("*") if x.is_file()] if src.is_dir() else [(src, dst / src.name)]
+        bad = [t for s_, t in pairs if t.exists() and t.read_bytes() != s_.read_bytes()]
+        if bad:
+            sys.stderr.write(f"ERROR : {bad[0].name}: Source and destination exist but do not match: immutable file modified\n")
+            sys.exit(1)
     dst.mkdir(parents=True, exist_ok=True)
     if src.is_dir():
         shutil.copytree(src, dst, dirs_exist_ok=True)
@@ -53,6 +59,9 @@ elif cmd == "moveto":
     d = p(rest[1])
     d.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), str(d))
+    if os.environ.get("FAKE_MOVE_ERRS_BUT_COMPLETES"):          # as Dropbox did with NewTreeFiles
+        sys.stderr.write("ERROR : Server side directory move failed: MoveDir failed:\n")
+        sys.exit(1)
 elif cmd == "move":                                            # file by file, then empty folders
     src, dst = p(rest[0]), p(rest[1])
     for f in sorted(x for x in src.rglob("*") if x.is_file()):

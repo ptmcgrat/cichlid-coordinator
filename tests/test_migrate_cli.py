@@ -126,9 +126,17 @@ class TestMigration(unittest.TestCase):
         b = self.e.b
         self.e.store(b).pull("proteins/*")
         self.assertTrue(b.proteome("Mzeb").local.is_file())
+        # an empty folder left in Data/ (as after an interrupted run): not "unexpected", removed by a rerun
+        (r / "Data/Compara116").mkdir(parents=True, exist_ok=True)
+        (cloud / "Data/Compara116").mkdir(parents=True, exist_ok=True)
+        dry = []
+        Migration(a, backend).run(lambda: None, apply=False, say=dry.append)
+        self.assertFalse(any("Data/Compara116" in x for x in dry))
         out = []
         Migration(a, backend).run(lambda: self.e.store(a), apply=True, say=out.append)
-        self.assertIn("Nothing to migrate", out[0])
+        self.assertIn("Nothing to migrate", out[-1])
+        self.assertFalse((r / "Data/Compara116").exists())
+        self.assertFalse((cloud / "Data/Compara116").exists())
 
 
 class TestCli(unittest.TestCase):

@@ -31,6 +31,17 @@ class TestStoreThroughRclone(test_store.TestStore):
         B.delete("c/d.txt")
         self.assertIsNone(B.read_text("c/d.txt"))
 
+    def test_move_that_errs_but_completes(self):
+        os.environ["FAKE_CLOUD"] = str(self.e.cloud)
+        B = RcloneBackend("fake:", rclone=FAKE, retries=1)
+        B.write_text("Data/Big/a.txt", "a")
+        os.environ["FAKE_MOVE_ERRS_BUT_COMPLETES"] = "1"
+        try:
+            B.move("Data/Big", "Archive/Big")                                  # no exception
+        finally:
+            os.environ.pop("FAKE_MOVE_ERRS_BUT_COMPLETES")
+        self.assertEqual(B.read_text("Archive/Big/a.txt"), "a")
+
     def test_large_folder_move_falls_back_to_files(self):
         os.environ["FAKE_CLOUD"] = str(self.e.cloud)
         B = RcloneBackend("fake:", rclone=FAKE, retries=1)

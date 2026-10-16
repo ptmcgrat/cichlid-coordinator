@@ -23,6 +23,12 @@ class ConfigError(RuntimeError):
     pass
 
 
+def config_dir():
+    """The coordinator's config/ folder (species list, species sets, sources): the repository's own,
+    unless CICHLID_DATA_CONFIG_DIR points elsewhere."""
+    return Path(os.environ.get("CICHLID_DATA_CONFIG_DIR") or Path(__file__).resolve().parents[2] / "config")
+
+
 def config_path():
     return Path(os.environ.get("CICHLID_DATA_CONFIG", "~/.config/cichlid-data/config.toml")).expanduser()
 

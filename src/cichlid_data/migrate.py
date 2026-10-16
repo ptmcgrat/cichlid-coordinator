@@ -98,6 +98,7 @@ class Migration:
         moved = {(s.where, s.src) for s in steps}
         handled = {"Data/OriginalTreeFiles", "Data/OriginalTreeFiles.tar", "Rebuild2026/genomes", "Rebuild2026/genomes.tar"}
         design, unexpected = [], []
+        empty = set(self._empty_data_folders())
         for where in ("local", "cloud"):
             for top in ("Rebuild2026", "Compara2026", "Combined2026"):
                 if (where == "local" and self._local(top)) or (where == "cloud" and self._cloud(top)):
@@ -110,7 +111,7 @@ class Migration:
                      if where == "local" and self._local("Data") else self.backend.list("Data") if where == "cloud" else [])
             for n in sorted(names):
                 rel = f"Data/{n.rstrip('/')}"
-                if n.startswith(".") or rel in handled or (where, rel) in moved or \
+                if n.startswith(".") or rel in handled or (where, rel) in moved or (where, rel) in empty or \
                         any(w == where and src.startswith(rel + "/") for w, src in moved) or rel == "Data/Blumer2025":
                     continue
                 unexpected.append((where, rel + ("/" if n.endswith("/") else "")))
@@ -137,6 +138,17 @@ class Migration:
             state_path.write_text(json.dumps(new_state, indent=2, sort_keys=True))
         return n
 
+    def _empty_data_folders(self):
+        """Folders directly under Data/ (and Data/ itself) that are empty, locally and in the cloud."""
+        out = []
+        d = self.root / "Data"
+        if d.is_dir():
+            out += [("local", f"Data/{e.name}") for e in d.iterdir() if e.is_dir() and not any(e.iterdir())]
+        for n in self.backend.list("Data"):
+            if n.endswith("/") and not self.backend.list(f"Data/{n.rstrip('/')}"):
+                out.append(("cloud", f"Data/{n.rstrip('/')}"))
+        return out
+
     def _remove_empty_parents(self, steps, say):
         """Old folders emptied by the moves (e.g. Data/Compara116) are removed, deepest first."""
         parents = set()
@@ -144,6 +156,7 @@ class Migration:
             parts = s.src.split("/")[:-1]
             for i in range(len(parts), 0, -1):
                 parents.add((s.where, "/".join(parts[:i])))
+        parents |= set(self._empty_data_folders())
         for where, rel in sorted(parents, key=lambda x: -x[1].count("/")):
             if where == "local":
                 d = self.root / rel
@@ -157,6 +170,8 @@ class Migration:
     def run(self, store_factory, apply=False, cleanup=False, say=print):
         steps, repush = self.plan()
         if not steps and not repush:
+            if apply:
+                self._remove_empty_parents([], say)
             say("Nothing to migrate: no old-layout inputs found locally or in the cloud.")
             return steps, repush
         for s in steps:
