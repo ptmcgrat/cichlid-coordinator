@@ -226,6 +226,8 @@ def main(argv=None, backend=None, settings=None):
                   f"{len(C.species(method=args.method))} proteomes ready; missing:")
             for s in miss:
                 print(f"  {s.prefix:<6} {s.species:<30} {s.status:<18} {'in species.tsv' if s.in_manifest else 'not in species.tsv'}")
+            if not miss:
+                print("  none")
         else:
             for s in C.species(method=args.method, role=args.role):
                 print(f"  {s.prefix:<6} {s.species:<30} {s.role:<10} {s.status:<18} {s.accession:<18} "

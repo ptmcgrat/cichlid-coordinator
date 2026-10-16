@@ -26,6 +26,11 @@ transcript ID is used to find the protein in the FASTA.
 
 Sequences are written for downstream tools: terminal '*' removed, selenocysteine U and any
 other non-standard letter replaced with X (counted in the table).
+
+Only genes on the primary assembly (chromosomes and their unplaced and unlocalized scaffolds) and
+the mitochondrion are kept. Genes on alternate loci and patches (human GRCh38, for example) are
+second copies that would look like recent duplications; they are counted in the QC table
+(non_primary_genes_skipped). This is the one change from the pipeline's Stage 2.
 """
 import csv
 import json
@@ -288,6 +293,26 @@ GENE_COLS = ["gene_id", "ncbi_gene_id", "annotation_gene_key", "symbol", "descri
 
 # =============================================================================== driver
 SUMMARY = "stage2_summary.tsv"
+KEEP_UNITS = ("Primary Assembly", "non-nuclear")     # chromosomes, their scaffolds, and the mitochondrion
+
+
+def nonprimary_seqids(seqreport_path):
+    """Sequences outside the primary assembly (alternate loci, patches), from NCBI's sequence report.
+    Genes there are second copies of primary-assembly genes (e.g. human MHC haplotypes) and would
+    look like recent duplications. Empty when there is no report or no assembly units."""
+    out = set()
+    if not Path(seqreport_path).is_file():
+        return out
+    with open(seqreport_path) as fh:
+        for line in fh:
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            unit = r.get("assemblyUnit", "")
+            if unit and unit not in KEEP_UNITS:
+                out |= {r[k] for k in ("refseqAccession", "genbankAccession", "sequenceName") if r.get(k)}
+    return out
 
 
 def build_species(prefix, fmt, download_dir, out_dir, species_name="", mode="complete-longest"):
@@ -302,6 +327,12 @@ def build_species(prefix, fmt, download_dir, out_dir, species_name="", mode="com
     fasta = read_fasta(sp / "protein.faa")
     results, stats = select_proteins(ann, fasta, mode)
     mito = mito_seqids(sp / "sequence_report.jsonl")
+    nonprimary = nonprimary_seqids(sp / "sequence_report.jsonl")
+    skipped = [g for g in results if g["seqid"] in nonprimary]
+    if skipped:                                  # alternate loci and patches: not part of the proteome
+        results = [g for g in results if g["seqid"] not in nonprimary]
+        stats["protein_coding_genes"] -= len(skipped)
+        stats["coding_genes_without_protein"] -= sum(1 for g in skipped if not g["chosen"])
 
     ids_seen, rows, proteins = {}, [], []
     lengths, n_partial, n_lowq, n_mito, n_repl = [], 0, 0, 0, 0
@@ -367,6 +398,7 @@ def build_species(prefix, fmt, download_dir, out_dir, species_name="", mode="com
         "cds_protein_not_in_fasta": stats["cds_protein_not_in_fasta"],
         "fasta_proteins_not_in_annotation": stats["fasta_proteins_not_in_annotation"],
         "duplicate_gene_ids": stats["duplicate_gene_ids"],
+        "non_primary_genes_skipped": len(skipped),
         "skipped_biotypes": "; ".join(f"{k.split(':', 1)[1]}={v}" for k, v in sorted(stats.items())
                                       if k.startswith("skipped_biotype:")),
     }

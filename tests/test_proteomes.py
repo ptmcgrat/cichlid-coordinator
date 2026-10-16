@@ -167,6 +167,33 @@ class TestStage2Rules(unittest.TestCase):
         self.assertIn("Brk_g1", pr.read_fasta(L.proteome("Brk").local))
 
 
+class TestPrimaryAssemblyOnly(unittest.TestCase):
+    def test_alternate_loci_and_patches_are_skipped(self):
+        with tempfile.TemporaryDirectory() as d:
+            L, man = setup(d)
+            dl = L.download("Onil").local
+            # a second copy of bmp2 (same GeneID) on an alternate locus, and a gene on a patch
+            alt = ("NT_ALT.1\tGnomon\tgene\t100\t5000\t.\t+\t.\tID=gene-bmp2-alt;Dbxref=GeneID:111;gene=bmp2;gene_biotype=protein_coding\n"
+                   "NT_ALT.1\tGnomon\tmRNA\t100\t5000\t.\t+\t.\tID=rna-XM_alt.1;Parent=gene-bmp2-alt\n"
+                   "NT_ALT.1\tGnomon\tCDS\t150\t900\t.\t+\t0\tID=cds-XP_1.1b;Parent=rna-XM_alt.1;protein_id=XP_1.1\n"
+                   "NW_PATCH.1\tGnomon\tgene\t1\t500\t.\t+\t.\tID=gene-p;Dbxref=GeneID:999;gene=patchy;gene_biotype=protein_coding\n")
+            (dl / "genomic.gff").write_text(GFF + alt)
+            (dl / "sequence_report.jsonl").write_text(
+                SEQREPORT.replace('"Mitochondrion"}', '"Mitochondrion","assemblyUnit":"non-nuclear"}')
+                         .replace('"Chromosome"}', '"Chromosome","assemblyUnit":"Primary Assembly"}')
+                + '{"refseqAccession":"NT_ALT.1","assemblyUnit":"ALT_REF_LOCI_1","role":"alt-scaffold"}\n'
+                + '{"refseqAccession":"NW_PATCH.1","assemblyUnit":"PATCHES","role":"fix-patch"}\n')
+            pr.build(L, man, species=["Onil"], say=lambda *_: None)
+            ids = [r["gene_id"] for r in schemas.GENES.read(L.genes_table("Onil").local)]
+            self.assertNotIn("Onil_111.2", ids)                                 # no false duplicate
+            self.assertNotIn("Onil_999", ids)
+            self.assertIn("Onil_888", ids)                                      # mitochondrion kept
+            with open(L.proteomes().local / "stage2_summary.tsv") as fh:
+                s = next(csv.DictReader(fh, delimiter="\t"))
+            self.assertEqual((s["non_primary_genes_skipped"], s["protein_coding_genes"],
+                              s["coding_genes_without_protein"], s["duplicate_gene_ids"]), ("2", "5", "1", "0"))
+
+
 class TestCoordinatorAdditions(unittest.TestCase):
     def setUp(self):
         self._t = tempfile.TemporaryDirectory()
