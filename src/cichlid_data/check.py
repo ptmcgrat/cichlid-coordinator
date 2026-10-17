@@ -4,6 +4,8 @@ For each method, its required inputs (below) and the proteomes of its species (f
     proteomes   present, and valid against the schemas (including the genes-table cross-check)
     resources   present (files, or non-empty folders), and matching their source record if they have
                 one (sizes; --deep also checksums)
+species tree  for a method that names one (species_sets.toml): rooted, fully resolved, and over
+                exactly the method's species
 With --fetch, anything missing locally is pulled from the cloud first. Exit status 1 if anything
 is missing or invalid, so run scripts can call it before starting.
 """
@@ -11,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import schemas
+from .catalog import check_species_tree
 from .provenance import read_record, verify
 
 # relative path -> what it must be: "file" or "dir" (non-empty)
@@ -76,6 +79,10 @@ def check(layout, catalog, methods=None, fetch=False, deep=False, store=None, sa
                     continue
                 detail = "no source record" if probs is None else "matches its source record"
             findings.append(Finding(m, rel, True, detail))
+        if catalog.methods[m].get("species_tree"):
+            name = catalog.methods[m]["species_tree"]
+            probs = check_species_tree(catalog.species_tree(m), [s.prefix for s in catalog.species(method=m)])
+            findings.append(Finding(m, f"species tree {name}", not probs, "valid" if not probs else "; ".join(probs[:3])))
         for s in catalog.species(method=m):
             faa = layout.proteome(s.prefix)
             if not faa.local.is_file() and fetch and store is not None:
@@ -90,3 +97,5 @@ def check(layout, catalog, methods=None, fetch=False, deep=False, store=None, sa
             findings.append(Finding(m, f"proteome {s.prefix}", not probs,
                                     "valid" if not probs else "; ".join(probs[:3])))
     return findings
+
+

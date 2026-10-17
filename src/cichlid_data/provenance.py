@@ -180,3 +180,5 @@ def load_sources(path):
     """config/sources.toml -> list of dicts (each with path, name, type, ...)."""
     import tomllib
     return tomllib.loads(Path(path).read_text()).get("source", [])
+
+

@@ -77,3 +77,5 @@ class TestPassthroughCommands(unittest.TestCase):
             self.assertEqual(opt["--outdir"], "/elsewhere")                      # explicit option wins
             self.assertEqual(opt["--nhx"], str(Path(d) / "Inputs/Families/Compara116/dumps/Compara.116.protein_default.nhx.emf.gz"))
             self.assertTrue(opt["--panel"].endswith("config/compara_panel.tsv"))
+
+

@@ -205,3 +205,5 @@ vulpes_vulpes	exclude	tetrapod	additional tetrapod; the panel already samples th
 xenopus_tropicalis	panel	vertebrate	frog
 xiphophorus_couchianus	exclude	fish	redundant with platyfish
 xiphophorus_maculatus	panel	ovalentaria	platyfish (Cyprinodontiformes)
+
+

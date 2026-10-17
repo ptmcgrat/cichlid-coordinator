@@ -18,8 +18,10 @@
       (these run the moved scripts with their own options: add --help to see them)
     cichlid-data proteomes [--species P,..] [--push] # one protein per gene, for each species
     cichlid-data check [--method M] [--fetch] [--deep]   # is everything each method needs here and sound?
-    cichlid-data validate PATH... [--kind K]        # check files against their schemas
-    cichlid-data catalog build|show|missing|validate # the species catalog (--method, --role)
+    cichlid-data validate PATH... [--kind K]        # check files against their schemas (a family folder, or a
+                                                    # whole families/ folder, against the family contract)
+    cichlid-data catalog build|show|missing|validate|tree  # the species catalog (--method, --role); tree prints
+                                                    # the path of a method's species tree (--method)
     cichlid-data provenance write|check|show        # source records for every input
     cichlid-data migrate [--apply] [--cleanup]       # moves the inputs to the new layout
 
@@ -27,6 +29,7 @@ PATTERN is a unit name or a glob over unit names, e.g. "results/Compara2026/*".
 """
 import argparse
 import sys
+from pathlib import Path
 
 from . import __version__
 from .config import ConfigError, Settings, write_default_config
@@ -111,10 +114,10 @@ def main(argv=None, backend=None, settings=None):
     p.add_argument("--deep", action="store_true", help="also compare checksums with source records")
     p = sub.add_parser("validate", help="check files against their schemas")
     p.add_argument("paths", nargs="+")
-    p.add_argument("--kind", choices=["genes", "assign", "orthologs", "proteome", "run", "family"])
+    p.add_argument("--kind", choices=["genes", "assign", "orthologs", "proteome", "run", "family", "families"])
     p.add_argument("--prefix")
     p = sub.add_parser("catalog", help="the species catalog")
-    p.add_argument("action", choices=["build", "show", "missing", "validate"])
+    p.add_argument("action", choices=["build", "show", "missing", "validate", "tree"])
     p.add_argument("--method")
     p.add_argument("--role")
     p = sub.add_parser("provenance", help="source records for every input")
@@ -210,11 +213,18 @@ def main(argv=None, backend=None, settings=None):
             sys.exit(1)
         return 0
     if args.cmd == "validate":
+        from .catalog import Catalog
         from .schemas import SchemaError, validate as _validate
+        prefixes = None
+        if args.kind in ("family", "families") or any(Path(x).is_dir() for x in args.paths):
+            try:                                   # the species prefixes, so family leaf names are checked too
+                prefixes = set(Catalog.load(L).organisms)
+            except FileNotFoundError:
+                print("  (no catalog.json here: leaf names are not checked against species prefixes)")
         failed = 0
         for path in args.paths:
             try:
-                problems = _validate(path, kind=args.kind, prefix=args.prefix)
+                problems = _validate(path, kind=args.kind, prefix=args.prefix, prefixes=prefixes)
             except (SchemaError, OSError) as e:
                 problems = [str(e)]
             failed += bool(problems)
@@ -237,6 +247,15 @@ def main(argv=None, backend=None, settings=None):
             ready = sum(s.status == "proteome ready" for s in C.organisms.values())
             print(f"Wrote {path}: {len(C.organisms)} organisms ({ready} with proteomes ready); methods: " +
                   ", ".join(f"{n} {len(m['species'])}" for n, m in C.methods.items()))
+            return 0
+        if args.action == "tree":
+            from .catalog import species_tree_path
+            if not args.method:
+                sys.exit("catalog tree needs --method, e.g. --method OrthoFinder2026")
+            try:
+                print(species_tree_path(args.method))
+            except KeyError as e:
+                sys.exit(str(e.args[0]))
             return 0
         C = Catalog.build(L) if args.action == "validate" else Catalog.load(L)
         if args.action == "validate":
@@ -362,3 +381,5 @@ def prepare_local(argv, settings=None):
 
 if __name__ == "__main__":
     main()
+
+

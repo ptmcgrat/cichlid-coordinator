@@ -1,6 +1,6 @@
 # Coordinator repository: instruction sheet
 
-*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026.*
+*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.8.0.*
 
 ## 1. Role
 
@@ -15,6 +15,11 @@ It does **not** run tree methods, make orthology calls, analyze results or serve
 
 **Rule for every other repository:** never build a data path by hand, never call rclone directly, never download an input yourself. Ask the coordinator.
 
+**The repositories that use it.** Two, and the boundary between them is the coordinator's (layout, schemas, catalog), so neither can drift from it:
+
+- `cichlid-trees`: TreeFam and Compara, plus the shared core: alignment and placement for the placement methods, and orthology calling and residues for **any** method's results, so every method's calls come from one rule.
+- `cichlid-orthofinder`: runs OrthoFinder on the catalog's 35 proteomes, converts its gene trees into the standard family format in `Results/OrthoFinder2026/`, and keeps OrthoFinder's own outputs alongside (`native/`). It never makes orthology calls; `cichlid-trees` calls its families. Its instruction sheet is `docs/orthofinder_repo_spec.md`.
+
 ## 2. Repository layout
 
 ```
@@ -22,7 +27,8 @@ cichlid-coordinator/
 ├── pyproject.toml           package cichlid_data; console script cichlid-data
 ├── config/
 │   ├── species.tsv          project species (edited by hand)
-│   ├── species_sets.toml    which species each method uses
+│   ├── species_sets.toml    which species each method uses (and the species tree a method must use)
+│   ├── species_tree_orthofinder.nwk   rooted, fully resolved tree of the 35 OrthoFinder species (for -s)
 │   ├── compara_panel.tsv    Compara reference panel (role per Ensembl species)
 │   └── sources.toml         every external resource: path, URL/accession, version, licence, citation
 ├── src/cichlid_data/
@@ -42,7 +48,7 @@ cichlid-coordinator/
 │   ├── migrate.py           one-time move from the old layout
 │   └── cli.py               the cichlid-data command
 ├── tests/                   all tests run offline against LocalBackend
-└── docs/                    project manifest, species lists, this sheet
+└── docs/                    project manifest, species lists, this sheet, the OrthoFinder repository sheet
 ```
 
 ## 3. Data layout (the paths Layout must produce)
@@ -64,8 +70,10 @@ cichlid-coordinator/
 ├── Results/
 │   ├── <Method><Year>/                TreeFam2026, Compara2026, OrthoFinder2026: identical structure
 │   │   ├── assign/<prefix>.assign.tsv
-│   │   ├── families/<family>/         alignment, tree.nwk, placements, done.json
+│   │   ├── families/<family>/         alignment.fa, tree.nwk, done.json (the family contract, section 4;
+│   │   │                              placement methods add their placements)
 │   │   ├── names/
+│   │   ├── native/                    the method's own outputs (OrthoFinder's result folders), as it wrote them
 │   │   ├── orthology/<prefix>.orthologs.tsv
 │   │   ├── residues/
 │   │   └── run.json
@@ -104,7 +112,7 @@ A clear error if neither the file nor the variables exist, saying exactly what t
 | `results(run)` | a `ResultsLayout` for `Results/<run>/` |
 | `analysis(name)` | `Analyses/<name>/` |
 
-`ResultsLayout` methods: `assign(prefix)`, `family(family)`, `orthology(prefix)`, `names()`, `residues(prefix)`, `run_record()`, and `unit(part)` (the `DataUnit` for a part).
+`ResultsLayout` methods: `assign(prefix)`, `family(family)`, `orthology(prefix)`, `names()`, `native()`, `residues(prefix)`, `run_record()`, and `unit(part)` (the `DataUnit` for a part).
 
 ### DataUnit (`units.py`)
 
@@ -117,6 +125,8 @@ A named, transferable piece of the tree, with a policy:
 | `on_demand` | Large; never pulled as part of a bulk pull, only by `ensure` | population VCFs, Daniocell raw data |
 
 `units.all()`, `units.get(name)`, `units.for_path(path)`.
+
+Every results run has the same units: `results/<run>/assign`, `families`, `names`, `native`, `orthology`, `residues`, `site` and `run`. `families` is sharded by family ID (the last three characters dropped, about 1,000 families per shard: `TF101001` in `TF101`, `OG0001234` in `OG0001`, `N0.HOG0001234` in `N0.HOG0001`). `native` holds a method's own outputs, **regenerable and tar-packed, one tar per top-level folder** (so a second run kept beside the first uploads only its own tar); it is backed up and pulled like everything else. Neither is ever packed by hand.
 
 ### Store (`store.py`)
 
@@ -148,7 +158,9 @@ Three configuration files, each with one job:
 
 Queries: `catalog.species(method=..., role=..., status=...)`, `catalog.missing(method)` (organisms whose proteome is not ready), `catalog[prefix]`. `validate()` returns errors (bad prefixes, unknown roles, method members without an entry or still candidates) and warnings (project species not in `species.tsv`).
 
-Commands: `cichlid-data catalog build | show | missing | validate`, with `--method` and `--role`.
+**Species tree.** A method may name a species tree in `species_sets.toml` (`species_tree = "species_tree_orthofinder.nwk"`, a file in `config/`). It must parse, be rooted and fully resolved (two children at the root and at every node), and have exactly the method's species as leaves. `catalog validate` and `catalog build` check it (an invalid tree stops the catalog from being written, so the tree and the species list cannot drift apart), and so does `cichlid-data check` for that method. `catalog.species_tree(method)` returns its path (`KeyError` if the method names none); its checksum is recorded with the other configuration files in `catalog.json`. The OrthoFinder tree is the one in `species_final.md`; a test keeps the two identical. Adding a species to OrthoFinder therefore means changing the list **and** the tree.
+
+Commands: `cichlid-data catalog build | show | missing | validate | tree`, with `--method` and `--role` (`catalog tree --method M` prints the species tree's path, for scripts).
 
 ### SourceRecord (`provenance.py`)
 
@@ -175,8 +187,8 @@ One module per boundary file, each with a `read()`, a `write()` and a `validate(
 |---|---|
 | Proteome FASTA `<prefix>.faa` | One record per gene; header `>gene_id description`; standard amino acids, `X`; no internal `*` |
 | Genes table `<prefix>.genes.tsv` | `gene_id, ncbi_gene_id, annotation_gene_key, symbol, description, biotype, seqid, start, end, strand, mitochondrial, n_transcripts, n_proteins, chosen_protein, chosen_transcript, protein_length, partial, low_quality, residues_replaced, internal_stops, product` |
-| Assignment `<prefix>.assign.tsv` | `gene_id, protein_length, best_family, score, evalue, protein_coverage, family_coverage, protein_region, n_families, second_family, second_score, fusion_partner, fusion_partner_score, fusion_partner_region, fusion_partner_family_coverage, flags` |
-| Family folder `families/<family>/` | `tree.nwk` (final tree, leaf names = gene IDs or reference protein IDs), the alignment, `done.json` (inputs hash) |
+| Assignment `<prefix>.assign.tsv` (`best_family` and `second_family` are family IDs; for OrthoFinder the orthogroup, with the score columns empty) | `gene_id, protein_length, best_family, score, evalue, protein_coverage, family_coverage, protein_region, n_families, second_family, second_score, fusion_partner, fusion_partner_score, fusion_partner_region, fusion_partner_family_coverage, flags` |
+| Family folder `families/<family>/` | `tree.nwk` (final tree, leaf names = gene IDs or reference protein IDs), `alignment.fa`, `done.json` (inputs hash, rooting): see "The family contract" below |
 | Orthology calls `<prefix>.orthologs.tsv` | Gene columns `gene_id, ncbi_gene_id, ncbi_symbol, ncbi_description, seqid, start, end, strand, mitochondrial, protein, protein_length, treefam_family, tree_mode, placement_status, placement_lwr`; then, for each reference (`human`, `mouse`, `zebrafish`, in that order), the block `<ref>_relationship, <ref>_ortholog_type, <ref>_symbol, <ref>_official_id, <ref>_ensembl_gene, <ref>_treefam_protein, <ref>_description, <ref>_name_status, <ref>_ref_in_subtree, <ref>_own_species_in_subtree, <ref>_median_cichlid_copies, <ref>_distance, <ref>_call_support`; then `human_uniprot, ncbi_symbol_agrees, confidence, caveats` |
 | Run record `run.json` | `method, method_version, parameters, started, finished, coordinator_version, catalog_md5, species` |
 
@@ -186,7 +198,21 @@ Booleans are written `True`/`False`; empty strings mean missing. Duplicate gene 
 
 The schemas were checked against files written by the pipeline's own Stage 2, 3 and 6 code: all valid.
 
-`cichlid-data validate PATH...` checks files (the kind is inferred from the name, or given with `--kind`).
+`cichlid-data validate PATH...` checks files (the kind is inferred from the name, or given with `--kind`: `genes`, `assign`, `orthologs`, `proteome`, `run`, `family`, `families`). A folder named `families` is checked family by family; given a catalog it also checks that leaf names starting with a species prefix are well-formed gene IDs.
+
+#### The family contract
+
+Every method writes `Results/<run>/` in the same way, whatever built the trees, so the calling code can be the same for all of them. For any run:
+
+- **`assign/<prefix>.assign.tsv`**: the existing schema. For OrthoFinder, `best_family` is the orthogroup (empty for a gene in none) and the score columns may be empty.
+- **`families/<family>/`**, one folder per family:
+  - **Family ID**: letters, digits, `.`, `_` and `-`, starting with a letter or digit (`TF101001`, `C116_012345`, `OG0001234`, `N0.HOG0001234`). The ID is the folder name.
+  - **`tree.nwk`**: the final tree. Leaf names are unique and are **our gene IDs** (`<prefix>_<id>`) or **reference-protein IDs**. OrthoFinder renames sequences internally (`0_123`); its trees must be mapped back before they are written, and a leaf that looks like an internal name is refused. A leaf that starts with a catalog prefix must be a well-formed gene ID.
+  - **`alignment.fa`**: the aligned sequences (FASTA, rows of equal length), with a row for every leaf of the tree. Optional for validation; rows without a leaf are allowed. *(File name to be confirmed against the TreeFam2026 output before v0.8.0 is tagged.)*
+  - **`done.json`**: a JSON object. It holds the inputs hash that lets a rerun skip finished work, and says whether the tree is already rooted: `"rooted": true` with a `"rooting"` text (for example `"rooting": "orthofinder species tree"`), or `"rooted": false`. `rooted` must be a true or false value; when true, `rooting` is required and the root of `tree.nwk` must have two children. **Consumers use an existing root and midpoint-root only otherwise**; a family that says nothing, or says something malformed, is treated as unrooted. `schemas.family_rooting(folder)` returns `(rooted, how)` so no consumer reimplements this rule.
+- **`run.json`**: the run record, as above.
+
+`schemas.validate_family(folder, prefixes=None)` and `schemas.validate_families(folder, prefixes=None)` check all of this; `cichlid-data validate Results/<run>/families` is the command.
 
 A schema change is a version change of the package (Section 8).
 
@@ -216,25 +242,25 @@ The pipeline's download and preparation scripts, moved over with their logic unc
 
 ### Check (`check.py`)
 
-`cichlid-data check [--method M] [--fetch] [--deep]` confirms, for each method, that everything it needs is present and sound: the proteomes of its species (valid against the schemas, with the genes-table cross-check) and its resources (TreeFam 9 or the prepared Compara trees, and the legacy name tables), each verified against its source record (sizes; `--deep` also checksums). `--fetch` pulls anything missing from the cloud first. It exits with an error if anything is missing or invalid, so run scripts can call it before starting.
+`cichlid-data check [--method M] [--fetch] [--deep]` confirms, for each method, that everything it needs is present and sound: the proteomes of its species (valid against the schemas, with the genes-table cross-check), its resources (TreeFam 9 or the prepared Compara trees, and the legacy name tables), each verified against its source record (sizes; `--deep` also checksums), and, for a method that names one, its species tree. `--fetch` pulls anything missing from the cloud first. It exits with an error if anything is missing or invalid, so run scripts can call it before starting.
 
 ## 5. Command line
 
 ```
-cichlid-data init                                   once per machine
-cichlid-data where <thing> [args] [--cloud]          print a path, e.g. "where proteome Mzeb"
+cichlid-data init [--root DIR] [--remote REMOTE] [--force]   once per machine
+cichlid-data where <thing> [args] [--cloud]          print a path, e.g. "where proteome Mzeb", "where results OrthoFinder2026 native"
 cichlid-data env                                     shell exports of the main paths
 cichlid-data units | status [pattern]
 cichlid-data pull | push <pattern>... [--force] [--dry-run]
 cichlid-data ensure <relative path>                  fetch one file or shard if missing
-cichlid-data retire <unit key>                       delete a unit's or shard's cloud copy
+cichlid-data retire <unit key> [--dry-run]           delete a unit's or shard's cloud copy
 cichlid-data migrate [--apply] [--cleanup]           the one-time move to the new layout
-cichlid-data provenance write | check | show
-cichlid-data catalog build | show | missing | validate [--method M] [--role R]
-cichlid-data validate <file>... [--kind K]
-cichlid-data download genomes [--species P,...] [--check-only] [--force] [--push]
+cichlid-data provenance write [--overwrite] [--md5-limit-gb N] | check [--deep] | show <folder>
+cichlid-data catalog build | show | missing | validate | tree [--method M] [--role R]
+cichlid-data validate <file or folder>... [--kind K] [--prefix P]
+cichlid-data download genomes [--species P,...] [--check-only] [--force] [--keep-zip] [--no-fetch] [--push]
 cichlid-data prepare-local --prefix P ...
-cichlid-data proteomes [--species P,...] [--force] [--push]
+cichlid-data proteomes [--species P,...] [--select complete-longest|longest] [--force] [--no-fetch] [--push]
 cichlid-data download annotations | expression | populations ...
 cichlid-data populations samples ...
 cichlid-data prepare compara ...
@@ -272,6 +298,7 @@ Folders emptied by the moves are removed, so `Data/` ends up holding only the va
 4. No other repository contains a hard-coded data path, an rclone call, or a download.
 5. Every file in `Inputs/` has a `source.json`, and `catalog.json` lists every species with its source and `used_by`.
 6. Every boundary file written by any repository passes `cichlid-data validate`.
+7. Every family folder written by any method (TreeFam, Compara, OrthoFinder) passes `cichlid-data validate Results/<run>/families`, and `cichlid-data check --method OrthoFinder2026` passes, including its species tree.
 
 ## 8. Versioning
 

@@ -79,3 +79,5 @@ def check_records(layout, deep=False, say=print, sources_file=None):
         say(f"  {f.relative_to(root)}: " + ("ok" if not problems else "; ".join(problems[:6]) +
                                            (f" (+{len(problems) - 6} more)" if len(problems) > 6 else "")))
     return bad
+
+

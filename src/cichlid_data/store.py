@@ -510,3 +510,5 @@ def get_store(settings=None, **kw):
     from .layout import Layout
     s = settings or Settings.load()
     return Store(Layout(s.local_root, s.cloud_remote), RcloneBackend(s.cloud_remote, s.rclone), **kw)
+
+

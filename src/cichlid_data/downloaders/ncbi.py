@@ -393,3 +393,5 @@ def download(layout, manifest, species=None, check_only=False, force=False, keep
         counts[r["status"]] = counts.get(r["status"], 0) + 1
     say(f"{len(summary)} species: " + ", ".join(f"{v} {k}" for k, v in sorted(counts.items())) + f"; wrote {path}")
     return summary, failed
+
+

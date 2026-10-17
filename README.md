@@ -34,13 +34,20 @@ cichlid-data push results/Compara2026/orthology
 cichlid-data migrate              # dry run of moving the inputs to the new layout; --apply to do it
 ```
 
-## Status (v0.7.1)
+## Status (v0.8.0)
 
 Feature-complete against `docs/coordinator_spec.md`: configuration, layout, data units, transfers
 (fingerprints, conflict detection, immutable units, locks, transfer log), the layout migration
 (applied on mzebra), provenance records, the species catalog, file-format schemas, genome downloads
 and local-species preparation, proteomes (Stage 2, with two fixes), all the other downloaders
 (annotations, expression, populations, the Compara preparation), and `cichlid-data check`.
+
+New in 0.8.0, the coordinator's side of the boundary between the method repositories: the family
+contract (`schemas.validate_family`, `validate_families`, `family_rooting`; any method's
+`Results/<run>/families/`), the OrthoFinder species tree as configuration
+(`config/species_tree_orthofinder.nwk`, validated against the catalog; `cichlid-data catalog tree`),
+and `Results/<run>/native/` for a method's own outputs. `docs/orthofinder_repo_spec.md` is the
+instruction sheet for the OrthoFinder repository.
 
 Optional extras: `pip install -e ".[expression]"` (NumPy, SciPy) for `summarize h5ad`;
 `".[samples]"` (gspread) for `populations samples --sheet`.
@@ -52,3 +59,5 @@ Next: the pipeline uses the coordinator for its paths and transfers.
 ```bash
 PYTHONPATH=src:tests python -m unittest discover tests
 ```
+
+

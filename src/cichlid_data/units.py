@@ -12,6 +12,10 @@ Packing:
 
 Tars hold paths relative to the unit's parent folder (e.g. "families/TF101001/..." for
 Results/<run>/families), so a unit can move without being repacked.
+
+Family IDs may be TF101001, C116_012345, OG0001234 or N0.HOG0001234 (letters, digits, '.', '_', '-'):
+families are sharded by dropping the last three characters (about 1,000 per shard). A family ID can
+contain a '.', so a path is only taken for a loose file when it ends in a known file extension.
 """
 import fnmatch
 import json
@@ -31,6 +35,15 @@ def family_shard(entry, is_dir):
 
 def species_shard(entry, is_dir):
     return entry if is_dir else "_top"
+
+
+entry_shard = species_shard          # one shard per top-level folder, loose files in _top (native outputs)
+
+FILE_SUFFIXES = (".tsv", ".csv", ".txt", ".json", ".tar", ".gz", ".nwk", ".fa", ".faa", ".fasta", ".log", ".md")
+
+
+def _looks_like_file(entry):
+    return entry.lower().endswith(FILE_SUFFIXES)
 
 
 @dataclass(frozen=True)
@@ -98,6 +111,10 @@ class Registry:
                 if part == "families":
                     yield U(f"results/{run}/families", f"{RESULTS}/{run}/families", "regenerable", "shards",
                             excludes=FAMILY_EXCLUDES, shard_by=family_shard)
+                elif part == "native":
+                    yield U(f"results/{run}/native", f"{RESULTS}/{run}/native", "regenerable", "shards",
+                            shard_by=entry_shard,
+                            description="a method's own outputs (e.g. OrthoFinder's), one tar per top-level folder")
                 else:
                     yield U(f"results/{run}/{part}", f"{RESULTS}/{run}/{part}", "regenerable", "tar")
             yield U(f"results/{run}/run", f"{RESULTS}/{run}/run.json", "regenerable", "files")
@@ -146,9 +163,12 @@ class Registry:
         if not rest:
             return best, None
         entry = rest.split("/")[0]
-        is_dir = "/" in rest or (self.layout.local_root / best.rel / entry).is_dir() or "." not in entry
+        looks_dir = (not _looks_like_file(entry)) if best.shard_by is family_shard else ("." not in entry)
+        is_dir = "/" in rest or (self.layout.local_root / best.rel / entry).is_dir() or looks_dir
         return best, best.shard_by(entry, is_dir)
 
 
 def load_index_text(text):
     return json.loads(text) if text and text.strip() else {}
+
+

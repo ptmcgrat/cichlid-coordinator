@@ -301,3 +301,5 @@ class TestCommands(unittest.TestCase):
             self.assertEqual(got["argv"][-2:], ["--outdir", str(e.a.local_source("Esur").local / "prepared")])
         finally:
             e.close()
+
+

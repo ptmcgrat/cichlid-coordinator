@@ -48,3 +48,5 @@ def coord_env(d):
     return {"CICHLID_DATA_ROOT": str(d / "local"), "CICHLID_DATA_REMOTE": "fake:",
             "CICHLID_DATA_RCLONE": FAKE_RCLONE_PATH, "FAKE_CLOUD": str(d / "cloud"),
             "CICHLID_DATA_CONFIG": str(d / "no-config.toml")}
+
+

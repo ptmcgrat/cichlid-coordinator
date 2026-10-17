@@ -43,8 +43,11 @@ class DataPath:
 
 
 class ResultsLayout:
-    """Identical structure for every method's results: Results/<run>/..."""
-    PARTS = ("assign", "families", "names", "orthology", "residues", "site")
+    """Identical structure for every method's results: Results/<run>/...
+
+    native/ holds a method's own outputs (OrthoFinder's result folders, say), kept beside the standard
+    parts so they are backed up and pulled like everything else."""
+    PARTS = ("assign", "families", "names", "native", "orthology", "residues", "site")
 
     def __init__(self, layout, run):
         self.layout, self.run = layout, run
@@ -69,6 +72,9 @@ class ResultsLayout:
 
     def names(self):
         return self._p("names")
+
+    def native(self):
+        return self._p("native")
 
     def orthology(self, prefix):
         return self._p(f"orthology/{prefix}.orthologs.tsv")
@@ -162,3 +168,5 @@ def get_layout(settings=None):
     from .config import Settings
     s = settings or Settings.load()
     return Layout(s.local_root, s.cloud_remote)
+
+

@@ -74,3 +74,5 @@ def write_default_config(path=None, local_root=None, cloud_remote=None, overwrit
                  f'cloud_remote = "{cloud_remote or DEFAULT_REMOTE}"\n'
                  f'rclone = "rclone"\n')
     return p
+
+

@@ -79,3 +79,5 @@ elif cmd == "purge":
     shutil.rmtree(p(rest[0]))
 else:
     sys.exit(1)
+
+

@@ -497,3 +497,5 @@ def merge_summary(path, summaries):
         w = csv.DictWriter(fh, cols, delimiter="\t", extrasaction="ignore", lineterminator="\n")
         w.writeheader()
         w.writerows(sorted(rows, key=lambda r: r["prefix"]))
+
+

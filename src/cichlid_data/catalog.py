@@ -5,6 +5,11 @@
     C.species(method="OrthoFinder2026")  # -> [Species]
     C.missing("OrthoFinder2026")         # organisms a method needs whose proteome is not ready
     C["Mzeb"].proteome                   # relative path of its proteome
+    C.species_tree("OrthoFinder2026")    # path of the rooted species tree its run must use (-s)
+
+A method may name a species tree in species_sets.toml (species_tree = "species_tree_orthofinder.nwk",
+a file in config/). It must be rooted, fully resolved, and have exactly the method's species as
+leaves; `validate` checks this, so the tree and the species list cannot drift apart.
 
 Built from config/species_sets.toml (organisms, roles, method membership), config/species.tsv
 (what Stage 1 downloads), config/compara_panel.tsv (Compara's reference panel), and the data:
@@ -19,7 +24,7 @@ import tomllib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from . import __version__
+from . import __version__, newick
 from .config import config_dir
 from .provenance import md5sum, read_record
 
@@ -79,12 +84,56 @@ def read_panel(path):
             if r.get("role") in ("reference", "panel")]
 
 
+def check_species_tree(path, species):
+    """-> problems with a species tree file for a method using exactly `species` (empty if fine).
+
+    A species tree must parse, be rooted and fully resolved (the root and every other internal node
+    have exactly two children), and have each of `species` as a leaf once, and no other leaves."""
+    path = Path(path)
+    if not path.is_file():
+        return [f"{path.name} not found in {path.parent}"]
+    try:
+        root = newick.parse(path.read_text())
+    except ValueError as e:
+        return [f"{path.name} does not parse: {e}"]
+    problems, leaves = [], [n.name for n in root.leaves()]
+    dup = sorted({x for x in leaves if leaves.count(x) > 1})
+    if "" in leaves:
+        problems.append("a leaf has no name")
+    if dup:
+        problems.append(f"duplicate leaves: {', '.join(dup)}")
+    extra, absent = sorted(set(leaves) - set(species) - {""}), sorted(set(species) - set(leaves))
+    if extra:
+        problems.append(f"leaves that are not species of the method: {', '.join(extra)}")
+    if absent:
+        problems.append(f"species of the method missing from the tree: {', '.join(absent)}")
+    unresolved = [n for n in root.iter() if not n.is_leaf() and len(n.children) != 2]
+    for n in unresolved[:3]:
+        where = "the root" if n is root else "a node (" + ", ".join(x.name for x in n.leaves()[:4]) + ", ...)"
+        problems.append(f"{where} has {len(n.children)} children; the tree must be rooted and fully resolved "
+                        "(two children at every node)")
+    if len(unresolved) > 3:
+        problems.append(f"... and {len(unresolved) - 3} more unresolved nodes")
+    return problems
+
+
+def species_tree_path(method, cfg=None):
+    """Path of the species tree file a method names in species_sets.toml; KeyError if it names none."""
+    cfg = Path(cfg or config_dir())
+    sets = tomllib.loads((cfg / "species_sets.toml").read_text())
+    name = sets.get("methods", {}).get(method, {}).get("species_tree")
+    if not name:
+        raise KeyError(f"{method} has no species_tree in species_sets.toml")
+    return cfg / name
+
+
 class Catalog:
-    def __init__(self, organisms, methods, panel, meta=None):
+    def __init__(self, organisms, methods, panel, meta=None, cfg=None):
         self.organisms = organisms              # prefix -> Species
         self.methods = methods                  # name -> {"description", "species": [prefixes], ...}
         self.panel = panel
         self.meta = meta or {}
+        self.cfg = Path(cfg) if cfg else None   # config folder it was built from (None when loaded)
 
     # ---- building
     @classmethod
@@ -132,11 +181,12 @@ class Catalog:
             elif layout.local_source(p).local.is_dir():
                 s.status = "local source only"
             s.used_by = [name for name, m in methods.items() if p in m["species"]]
+        files = ["species_sets.toml", "species.tsv", "compara_panel.tsv"] + sorted(
+            {m["species_tree"] for m in methods.values() if m.get("species_tree")})
         meta = {"catalog_version": CATALOG_VERSION, "built": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "built_by": f"cichlid-data {__version__}",
-                "config": {f: md5sum(cfg / f) for f in ("species_sets.toml", "species.tsv", "compara_panel.tsv")
-                           if (cfg / f).is_file()}}
-        return cls(organisms, methods, panel, meta)
+                "config": {f: md5sum(cfg / f) for f in files if (cfg / f).is_file()}}
+        return cls(organisms, methods, panel, meta, cfg)
 
     # ---- files
     def to_dict(self):
@@ -176,6 +226,15 @@ class Catalog:
             out = [s for s in out if s.status == status]
         return out
 
+    def species_tree(self, method):
+        """Path of the species tree file the method must use (config/<species_tree>)."""
+        if method not in self.methods:
+            raise KeyError(f"unknown method {method!r} (one of {', '.join(self.methods)})")
+        name = self.methods[method].get("species_tree")
+        if not name:
+            raise KeyError(f"{method} has no species_tree in species_sets.toml")
+        return (self.cfg or config_dir()) / name
+
     def missing(self, method):
         """Organisms a method needs whose proteome is not ready."""
         return [s for s in self.species(method=method) if s.status != "proteome ready"]
@@ -203,4 +262,9 @@ class Catalog:
                     errors.append(f"{name}: {p} has no organism entry")
                 elif self.organisms[p].role == "candidate":
                     errors.append(f"{name}: {p} is a candidate; change its role before using it")
+            if m.get("species_tree"):
+                errors += [f"{name}: species tree {m['species_tree']}: {pr}"
+                           for pr in check_species_tree(self.species_tree(name), m["species"])]
         return errors, warnings
+
+

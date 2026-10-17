@@ -6,7 +6,7 @@ Aims this list serves: (1) human and zebrafish orthology relationships for proje
 
 **How each method uses species.** TreeFam 9 and Ensembl Compara bring their own reference species in precomputed trees; we only choose which **project species** are placed onto them (and, for Compara, which reference species to keep: `compara_panel.tsv`). OrthoFinder builds families from scratch, so it uses exactly the proteomes we give it.
 
-**Status:** *downloaded* = proteome in hand; *to download* = NCBI RefSeq, fetched by Stage 1; *in resource* = present inside the TreeFam or Compara data, no separate download.
+**Status:** *downloaded* = proteome in hand; *to download* = NCBI RefSeq, fetched by Stage 1; *in resource* = present inside the TreeFam or Compara data, no separate download. As of October 2026 all 35 OrthoFinder proteomes are built and in the cloud (`cichlid-data catalog missing --method OrthoFinder2026` reports none missing).
 
 Columns: **TF** = TreeFam 9, **C** = Compara 116, **OF** = OrthoFinder. "query" = our proteins placed on the method's trees, with calls made; "ref" = a reference species in the method's trees.
 
@@ -24,8 +24,8 @@ Columns: **TF** = TreeFam 9, **C** = Compara 116, **OF** = OrthoFinder. "query" 
 | Hbur | *Haplochromis burtoni* | RefSeq GCF_018398535.1 | downloaded | query | query | yes |
 | Mzeb | *Maylandia zebra* | RefSeq GCF_041146795.1 | downloaded | query | query | yes |
 | Acal | *Astatotilapia calliptera* | RefSeq GCF_964374335.1 | downloaded | query | query | yes |
-| Bspl | *Betta splendens* (betta) | RefSeq | **to download (new project species)** | query | query (Ensembl copy becomes validation) | yes |
-| Gacu | *Gasterosteus aculeatus* (stickleback) | RefSeq | **to download (new project species)** | query (TreeFam also has it as ref) | query (Ensembl copy becomes validation) | yes |
+| Bspl | *Betta splendens* (betta) | RefSeq (accession in `config/species.tsv`) | downloaded (new project species) | query | query (Ensembl copy becomes validation) | yes |
+| Gacu | *Gasterosteus aculeatus* (stickleback) | RefSeq (accession in `config/species.tsv`) | downloaded (new project species) | query (TreeFam also has it as ref) | query (Ensembl copy becomes validation) | yes |
 
 ## 2. Cichlids' relatives, for placing duplications
 
@@ -93,7 +93,7 @@ Columns: **TF** = TreeFam 9, **C** = Compara 116, **OF** = OrthoFinder. "query" 
 
 12 project species (10 cichlids, betta, stickleback) + 6 ovalentarians + 8 other teleosts (fugu, cod, pike, herring, zebrafish, cavefish, elephantfish, eel) + gar and reedfish + human, mouse, chicken, frog, coelacanth, elephant shark + amphioxus. Plus bowfin and *Amphilophus* if their annotations check out (37).
 
-Species tree for `-s` (choices marked in `orthofinder_species.md`; the eel's position relative to the bonytongues is also debated, so test both):
+Species tree for `-s` (choices marked in `orthofinder_species.md`; the eel's position relative to the bonytongues is also debated, so test both). **The file `config/species_tree_orthofinder.nwk` is the one the pipeline uses**: it is checked against the catalog's OrthoFinder species (same set, rooted, fully resolved) and a test keeps it identical to the tree below. To change the tree, change both together.
 
 ```
 (Bflo,(Cmil,((Lcha,(Xtro,(Ggal,(Mmus,Hsap)))),(Ecal,(Locu,(Aang,(Pkin,((Char,(Drer,Amex)),(Eluc,(Gmor,((Gacu,Trub),(Bspl,(((Esur,(Acen,(Pmar,(Onil,(Nbri,(Pmic,(Sdia,(Hbur,(Mzeb,Acal))))))))),Aoce),(Olat,(Nfur,(Fhet,(Pret,Xmac)))))))))))))))));
@@ -106,3 +106,4 @@ Species tree for `-s` (choices marked in `orthofinder_species.md`; the eel's pos
 1. Betta and stickleback promoted to project species (calls in all three methods).
 2. European eel added to OrthoFinder: with the bonytongues, it brackets the teleost root, so duplications can be placed at the teleost genome duplication itself.
 3. Sea lamprey and *Ciona* dropped from OrthoFinder: they don't serve either aim, and both complicate families. They remain in TreeFam and Compara, whose trees are fixed.
+4. The OrthoFinder species tree became configuration (`config/species_tree_orthofinder.nwk`), validated against the species list (v0.8.0).
