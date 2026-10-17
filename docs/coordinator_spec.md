@@ -1,6 +1,6 @@
 # Coordinator repository: instruction sheet
 
-*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.8.0.*
+*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.9.0.*
 
 ## 1. Role
 
@@ -30,7 +30,7 @@ The flow is 1 and 2 (independent of each other), then 3, then 4, then 5: the ser
 - **Only project 3 makes orthology calls**, and it makes them for all three methods with one rule, so differences between methods reflect the trees, not the calling logic. Projects 1 and 2 stop at families and assignments.
 - **The residue step belongs to project 4.** It maps protein positions onto alignment columns, and it needs nothing but `combined.aln` and the proteome, so it is one tool for every method.
 
-**Releases (decided, not yet built: v0.9.0).** One release number is shared by all projects (`v1`, `v2`, ...). A release is a named state of the whole resource: the species list, the input versions (TreeFam 9, Compara 116, the OrthoFinder version), the species tree and the delivered species. A new species, a better annotation or a new Compara release makes a new major release. Release status is one of `planned`, `building`, `frozen`, `published` and `superseded`; the owner of the project decides each change. Results will live under `Results/<release>/<Part>/` (parts `TreeFam`, `Compara`, `OrthoFinder`, `Homology`, `Analysis`), replacing `Results/<Method><Year>/`, and `release freeze` will archive the proteomes, catalog and species tree of a release so it can be reproduced. Release 1 delivers assignment tables for *M. zebra* and *A. calliptera* (the `deliver` species), while TreeFam and Compara place the 12 project species. The *A. calliptera* gene models are from the newest annotation; the variant data are on fAstCal1.2 (GCF_900246225.1), so project 4 lifts protein coordinates over, and both accessions are recorded in the release. Until v0.9.0 is released, the rest of this document describes the current layout.
+**Releases (v0.9.0).** One release number is shared by all projects (`v1`, `v2`, ...). A release is a named state of the whole resource: the species, the input versions (TreeFam 9, Compara 116, the OrthoFinder version), the species tree and the delivered species. A new species, a better annotation or a new Compara release makes a new release. A release is defined in `config/releases.toml`, and its status is one of `planned`, `building`, `frozen`, `published` and `superseded`; the owner of the project changes it by editing that file. Results live under `Results/<release>/<Part>/` (parts `TreeFam`, `Compara`, `OrthoFinder`, `Homology`, `Analysis`). `cichlid-data release freeze v1` archives the proteomes, catalog and species trees of a release in `Releases/v1/`, which never changes afterwards, so the release can be reproduced after a species' annotation improves. Release 1 delivers calls for *M. zebra* and *A. calliptera* (`deliver`), while TreeFam and Compara place the 12 project species. The *A. calliptera* gene models are the newest annotation, and the variant data are on fAstCal1.2 (GCF_900246225.1), so project 4 lifts protein coordinates over; both accessions are recorded (the second in the release's `inputs`).
 
 ## 2. Repository layout
 
@@ -39,7 +39,8 @@ cichlid-coordinator/
 ├── pyproject.toml           package cichlid_data; console script cichlid-data
 ├── config/
 │   ├── species.tsv          project species (edited by hand)
-│   ├── species_sets.toml    which species each method uses (and the species tree a method must use)
+│   ├── species_sets.toml    every organism the project uses, and its role
+│   ├── releases.toml        the releases: status, delivered species, input versions, and each part's species and species tree
 │   ├── species_tree_orthofinder.nwk   rooted, fully resolved tree of the 35 OrthoFinder species (for -s)
 │   ├── compara_panel.tsv    Compara reference panel (role per Ensembl species)
 │   └── sources.toml         every external resource: path, URL/accession, version, licence, citation
@@ -80,16 +81,18 @@ cichlid-coordinator/
 │   ├── Expression/                    HPA/, Zebrahub/, Daniocell/, Bgee/, Brawand/, raw/   (each with source.json)
 │   └── Populations/Blumer2025/        VCFs, tables, reference/
 ├── Results/
-│   ├── <Method><Year>/                TreeFam2026, Compara2026, OrthoFinder2026: identical structure
+│   ├── <release>/<Part>/              v1/TreeFam, v1/Compara, v1/OrthoFinder, v1/Homology, v1/Analysis:
+│   │   │                              identical structure
 │   │   ├── assign/<prefix>.assign.tsv
 │   │   ├── families/<family>/         combined.aln, tree.nwk, done.json (the family contract, section 4;
 │   │   │                              placement methods add queries.fa, ref.tree, placements.tsv, ...)
 │   │   ├── names/
-│   │   ├── native/                    the method's own outputs (OrthoFinder's result folders), as it wrote them
+│   │   ├── native/                    the part's own outputs (OrthoFinder's result folders), as it wrote them
 │   │   ├── orthology/<prefix>.orthologs.tsv
 │   │   ├── residues/
 │   │   └── run.json
-│   └── Combined2026/                  orthology/, site/
+├── Releases/<release>/                the frozen archive of a release (`release freeze`): release.json, catalog.json,
+│                                      proteomes/, genes/, config/ (species trees, reference panel)
 ├── Analyses/<Name>/                   Variants, Tissues, Duplications, Enrichment, ...
 └── Archive/Project2018/               the 2018 resource's own files, kept as a record
 ```
@@ -121,10 +124,12 @@ A clear error if neither the file nor the variables exist, saying exactly what t
 | `catalog()` | `Inputs/Proteins/catalog.json` |
 | `family_resource(name)` | `Inputs/Families/<name>/` |
 | `annotations(name)`, `expression(name)`, `population(name)` | `Inputs/Annotations/<name>/` and so on |
-| `results(run)` | a `ResultsLayout` for `Results/<run>/` |
-| `analysis(name)` | `Analyses/<name>/` |
+| `results(release, part)` | a `ResultsLayout` for `Results/<release>/<part>/` |
+| `release(release)` | a `ReleaseLayout` for `Releases/<release>/` |
+| `runs()`, `releases()` | the (release, part) pairs and the releases present on this machine |
+| `analysis(name)` | `Analyses/<name>/` (the earlier analyses; new ones go in `results(release, "Analysis")`) |
 
-`ResultsLayout` methods: `assign(prefix)`, `family(family)`, `orthology(prefix)`, `names()`, `native()`, `residues(prefix)`, `run_record()`, and `unit(part)` (the `DataUnit` for a part).
+A release is `v` and a number; a part is one of `TreeFam`, `Compara`, `OrthoFinder`, `Homology`, `Analysis` (anything else is refused). `ResultsLayout` methods: `assign(prefix)`, `family(family)`, `orthology(prefix)`, `names()`, `native()`, `residues(prefix)`, `run_record()`, `section(name)`, and `unit(section)` (the `DataUnit` for a section: `assign`, `families`, `names`, `native`, `orthology`, `residues`, `site`). `ReleaseLayout` methods: `manifest()`, `catalog()`, `proteome(prefix)`, `genes_table(prefix)`, `species_tree(name)`, `root()`.
 
 ### DataUnit (`units.py`)
 
@@ -138,7 +143,7 @@ A named, transferable piece of the tree, with a policy:
 
 `units.all()`, `units.get(name)`, `units.for_path(path)`.
 
-Every results run has the same units: `results/<run>/assign`, `families`, `names`, `native`, `orthology`, `residues`, `site` and `run`. `families` is sharded by family ID (the last three characters dropped, about 1,000 families per shard: `TF101001` in `TF101`, `C116_012345` in `C116_012`, `OG0001234` in `OG0001`). `native` holds a method's own outputs, **regenerable and tar-packed, one tar per top-level folder** (so a second run kept beside the first uploads only its own tar); it is backed up and pulled like everything else. Neither is ever packed by hand.
+Every part of a release has the same units: `results/<release>/<part>/assign`, `families`, `names`, `native`, `orthology`, `residues`, `site` and `run`. Each frozen release is one immutable unit, `releases/<release>`. `families` is sharded by family ID (the last three characters dropped, about 1,000 families per shard: `TF101001` in `TF101`, `C116_012345` in `C116_012`, `OG0001234` in `OG0001`). `native` holds a part's own outputs, **regenerable and tar-packed, one tar per top-level folder** (so a second run kept beside the first uploads only its own tar); it is backed up and pulled like everything else. Neither is ever packed by hand.
 
 ### Store (`store.py`)
 
@@ -161,7 +166,8 @@ Every transfer is logged (`<root>/.cichlid-data/transfers.log`: time, user, host
 Three configuration files, each with one job:
 
 - `config/species.tsv`: what Stage 1 downloads (the download manifest).
-- `config/species_sets.toml`: every organism the project uses (prefix, name, role, lineage, source; roles `project`, `relative`, `reference`, `outgroup`, `candidate`) and each method's species: `queries = "project"` for TreeFam and Compara, an explicit list for OrthoFinder.
+- `config/species_sets.toml`: every organism the project uses (prefix, name, role, lineage, source; roles `project`, `relative`, `reference`, `outgroup`, `candidate`).
+- `config/releases.toml`: each release (`status`, `description`, `deliver`, `inputs`) and its parts, each with its species: `queries = "project"` for TreeFam and Compara, an explicit list for OrthoFinder, none for Homology and Analysis. A part may name a `species_tree` or `reference_panel` (a file in `config/`).
 - `config/compara_panel.tsv`: Compara's reference panel.
 
 `Catalog.build(layout)` combines them with what is on disk into `catalog.json`; `Catalog.load(layout)` reads it.
@@ -170,11 +176,11 @@ Three configuration files, each with one job:
 
 `catalog.md5()` is the MD5 of the `catalog.json` file the catalog was loaded from or written to (what a run record's `catalog_md5` holds; a catalog that was only built has no file yet and raises `FileNotFoundError`).
 
-Queries: `catalog.species(method=..., role=..., status=...)`, `catalog.missing(method)` (organisms whose proteome is not ready), `catalog[prefix]`. `validate()` returns errors (bad prefixes, unknown roles, method members without an entry or still candidates) and warnings (project species not in `species.tsv`).
+Queries: `catalog.species(release=..., part=..., role=..., status=...)` (a release alone gives the union of its parts), `catalog.missing(release, part)` (organisms whose proteome is not ready), `catalog.release_name(release=None)` (a release, checked; or the only one that is not superseded), `catalog.part(release, part)`, `catalog.releases[release]`, `catalog[prefix]`. `validate(release=None)` returns errors (bad prefixes, unknown roles; for a release: an unknown status or part, no species, members without an entry or still candidates, a delivered species that is not a project species or not in every tree part, an invalid species tree) and warnings (project species not in `species.tsv`). A `catalog.json` from v0.8 (which has methods, not releases) is refused with a message to run `catalog build`.
 
-**Species tree.** A method may name a species tree in `species_sets.toml` (`species_tree = "species_tree_orthofinder.nwk"`, a file in `config/`). It must parse, be rooted and fully resolved (two children at the root and at every node), and have exactly the method's species as leaves. `catalog validate` and `catalog build` check it (an invalid tree stops the catalog from being written, so the tree and the species list cannot drift apart), and so does `cichlid-data check` for that method. `catalog.species_tree(method)` returns its path (`KeyError` if the method names none); its checksum is recorded with the other configuration files in `catalog.json`. The OrthoFinder tree is the one in `species_final.md`; a test keeps the two identical. Adding a species to OrthoFinder therefore means changing the list **and** the tree.
+**Species tree.** A part may name a species tree in `releases.toml` (`species_tree = "species_tree_orthofinder.nwk"`, a file in `config/`). It must parse, be rooted and fully resolved (two children at the root and at every node), and have exactly the part's species as leaves. `catalog validate` and `catalog build` check it (an invalid tree stops the catalog from being written, so the tree and the species list cannot drift apart), and so does `cichlid-data check` for that part. `catalog.species_tree(release, part)` returns its path (`KeyError` if the part names none); its checksum is recorded with the other configuration files in `catalog.json`. The OrthoFinder tree is the one in `species_final.md`; a test keeps the two identical. Adding a species to OrthoFinder therefore means changing the list **and** the tree.
 
-Commands: `cichlid-data catalog build | show | missing | validate | tree`, with `--method` and `--role` (`catalog tree --method M` prints the species tree's path, for scripts).
+Commands: `cichlid-data catalog build | show | missing | validate | tree`, with `--release`, `--part` and `--role` (`catalog tree --part P` prints the species tree's path, for scripts; `--release` may be left out while only one release is live).
 
 ### SourceRecord (`provenance.py`)
 
@@ -216,7 +222,7 @@ The schemas were checked against files written by the pipeline's own Stage 2, 3 
 
 #### The family contract
 
-Every method writes `Results/<run>/` in the same way, whatever built the trees, so the calling code can be the same for all of them. For any run:
+Every part writes `Results/<release>/<Part>/` in the same way, whatever built the trees, so the homology decider can read all of them alike. For any part of a release:
 
 - **`assign/<prefix>.assign.tsv`**: the existing schema. For OrthoFinder, `best_family` is the orthogroup (empty for a gene in none) and the score columns may be empty.
 - **`families/<family>/`**, one folder per family:
@@ -224,9 +230,9 @@ Every method writes `Results/<run>/` in the same way, whatever built the trees, 
   - **`tree.nwk`**: the final tree. Leaf names are unique and are **our gene IDs** (`<prefix>_<id>`) or **reference-protein IDs**. OrthoFinder renames sequences internally (`0_123`); its trees must be mapped back before they are written, and a leaf that looks like an internal name is refused. With the catalog's prefixes, a leaf whose text before its first `_` is a catalog prefix must be a well-formed gene ID; any other name (a bare prefix, or a reference ID that merely starts with the same letters) is a reference ID and is left alone.
   - **`combined.aln`**: required. The aligned sequences (FASTA, rows of equal length), with a row for every leaf of the tree; rows without a leaf are allowed. The placement methods write it beside their own files (`queries.fa`, `ref.tree`, `epa_result.jplace`, `placements.tsv`, `residue_map.tsv`, ...), which are not part of the contract and are not checked.
   - **`done.json`**: a JSON object. It holds the inputs hash that lets a rerun skip finished work, and says whether the tree is already rooted: `"rooted": true` with a `"rooting"` text (for example `"rooting": "orthofinder species tree"`), or `"rooted": false`. `rooted` must be a true or false value; when true, `rooting` is required and the root of `tree.nwk` must have two children. **Consumers use an existing root and midpoint-root only otherwise**; a family that says nothing, or says something malformed, is treated as unrooted. `schemas.family_rooting(folder)` returns `(rooted, how)` so no consumer reimplements this rule.
-- **`run.json`**: the run record, as above.
+- **`run.json`**: the run record, as above. Its `release` (and a family's `done.json` `release`, if present) must be the release of the folder it sits in.
 
-`schemas.validate_family(folder, prefixes=None)` and `schemas.validate_families(folder, prefixes=None)` check all of this; `cichlid-data validate Results/<run>/families` is the command.
+`schemas.validate_family(folder, prefixes=None)` and `schemas.validate_families(folder, prefixes=None)` check all of this; `cichlid-data validate Results/<release>/<Part>/families` is the command.
 
 A schema change is a version change of the package (Section 8).
 
@@ -256,13 +262,19 @@ The pipeline's download and preparation scripts, moved over with their logic unc
 
 ### Check (`check.py`)
 
-`cichlid-data check [--method M] [--fetch] [--deep]` confirms, for each method, that everything it needs is present and sound: the proteomes of its species (valid against the schemas, with the genes-table cross-check), its resources (TreeFam 9 or the prepared Compara trees, and the legacy name tables), each verified against its source record (sizes; `--deep` also checksums), and, for a method that names one, its species tree. `--fetch` pulls anything missing from the cloud first. It exits with an error if anything is missing or invalid, so run scripts can call it before starting.
+`cichlid-data check [--release R] [--part P] [--fetch] [--deep]` confirms, for each part of a release (default: every release that is not superseded), that everything it needs is present and sound: the proteomes of its species (valid against the schemas, with the genes-table cross-check), its resources (TreeFam 9 or the prepared Compara trees for those parts; the legacy name tables for Homology), each verified against its source record (sizes; `--deep` also checksums), and, for a part that names one, its species tree. For a frozen or published release it also checks its archive (present and intact) and that the current proteomes and configuration have not drifted from it. `--fetch` pulls anything missing from the cloud first. It exits with an error if anything is missing or invalid, so run scripts can call it before starting.
+
+### Releases (`releases.py`)
+
+`freeze(layout, catalog, release)` writes the archive `Releases/<release>/` from a freshly built catalog. It refuses unless the release is valid, its status in `releases.toml` is `frozen` or `published` (freezing is the owner's decision), every species it uses has a proteome, and it has not been frozen already (a frozen release never changes). The archive holds `release.json` (the release as defined, its status, the coordinator version, the species with their proteome checksums, and the size and MD5 of every file), `catalog.json`, `proteomes/<prefix>.faa`, `genes/<prefix>.genes.tsv` and `config/` (the species trees and reference panel). It is written to a temporary folder and renamed, so it appears whole or not at all. Its unit is immutable: after `cichlid-data push releases/<release>` an edit is refused. Runs of a frozen release can read the proteomes from the archive (`layout.release(r).proteome(p)`).
+
+`verify_archive(layout, release, deep=True)` returns what differs in the archive from when it was frozen (missing, resized or changed files, and files that were added). `drift(layout, release)` returns how the current proteomes and configuration differ from a frozen release: not an error in the data, but a sign that a newer release is due. `load_manifest(layout, release)` reads `release.json`.
 
 ## 5. Command line
 
 ```
 cichlid-data init [--root DIR] [--remote REMOTE] [--force]   once per machine
-cichlid-data where <thing> [args] [--cloud]          print a path, e.g. "where proteome Mzeb", "where results OrthoFinder2026 native"
+cichlid-data where <thing> [args] [--cloud]          print a path, e.g. "where proteome Mzeb", "where results v1 OrthoFinder native", "where release v1"
 cichlid-data env                                     shell exports of the main paths
 cichlid-data units | status [pattern]
 cichlid-data pull | push <pattern>... [--force] [--dry-run]
@@ -270,7 +282,8 @@ cichlid-data ensure <relative path>                  fetch one file or shard if 
 cichlid-data retire <unit key> [--dry-run]           delete a unit's or shard's cloud copy
 cichlid-data migrate [--apply] [--cleanup]           the one-time move to the new layout
 cichlid-data provenance write [--overwrite] [--md5-limit-gb N] | check [--deep] | show <folder>
-cichlid-data catalog build | show | missing | validate | tree [--method M] [--role R]
+cichlid-data catalog build | show | missing | validate | tree [--release R] [--part P] [--role X]
+cichlid-data release show | validate | freeze [R] [--fast]       releases and their frozen archives
 cichlid-data validate <file or folder>... [--kind K] [--prefix P]
 cichlid-data download genomes [--species P,...] [--check-only] [--force] [--keep-zip] [--no-fetch] [--push]
 cichlid-data prepare-local --prefix P ...
@@ -279,7 +292,7 @@ cichlid-data download annotations | expression | populations ...
 cichlid-data populations samples ...
 cichlid-data prepare compara ...
 cichlid-data summarize h5ad | rnaseq ...
-cichlid-data check [--method M] [--fetch] [--deep]
+cichlid-data check [--release R] [--part P] [--fetch] [--deep]
 ```
 
 The moved scripts' commands take the scripts' own options (`--help` lists them).
@@ -312,7 +325,8 @@ Folders emptied by the moves are removed, so `Data/` ends up holding only the va
 4. No other repository contains a hard-coded data path, an rclone call, or a download.
 5. Every file in `Inputs/` has a `source.json`, and `catalog.json` lists every species with its source and `used_by`.
 6. Every boundary file written by any repository passes `cichlid-data validate`.
-7. Every family folder written by any method (TreeFam, Compara, OrthoFinder) passes `cichlid-data validate Results/<run>/families`, and `cichlid-data check --method OrthoFinder2026` passes, including its species tree.
+7. Every family folder written by any part (TreeFam, Compara, OrthoFinder) passes `cichlid-data validate Results/<release>/<Part>/families`, and `cichlid-data check --release v1 --part OrthoFinder` passes, including its species tree.
+8. A frozen release's archive is intact (`cichlid-data release validate`), and `cichlid-data check` shows no drift from it.
 
 ## 8. Versioning
 

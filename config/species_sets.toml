@@ -1,6 +1,7 @@
-# Every organism the project uses, its role, and which methods use it (see docs/species_final.md).
-# `cichlid-data catalog build` combines this with species.tsv (what Stage 1 downloads),
-# compara_panel.tsv (Compara's reference panel) and what is on disk, into catalog.json.
+# Every organism the project uses and its role (see docs/species_final.md). Which species each part of a
+# release uses is in releases.toml. `cichlid-data catalog build` combines this with releases.toml,
+# species.tsv (what Stage 1 downloads), compara_panel.tsv (Compara's reference panel) and what is on
+# disk, into catalog.json.
 #
 # role:   project    orthology calls are made for it (a query in every method)
 #         relative   cichlids' relatives, for placing duplications (Ovalentaria)
@@ -9,25 +10,6 @@
 #         candidate  not used yet (no annotation, or to be checked)
 # source: where its proteins come from: ncbi_refseq | authors | ensembl
 # Accessions are filled in once looked up (orthofinder_species.md has the lookup command).
-
-[methods.TreeFam2026]
-description = "TreeFam 9 families and trees; project species placed as queries; references fixed (109 genomes)"
-queries = "project"
-
-[methods.Compara2026]
-description = "Ensembl Compara 116 trees, pruned to compara_panel.tsv; project species placed as queries"
-queries = "project"
-reference_panel = "compara_panel.tsv"
-
-[methods.OrthoFinder2026]
-description = "Families and trees built de novo from these proteomes"
-# Rooted, fully resolved species tree for OrthoFinder's -s: exactly these species as leaves (checked by
-# `cichlid-data catalog validate` and `check`). Source: species_final.md, where the debated choices are noted.
-species_tree = "species_tree_orthofinder.nwk"
-species = ["Esur", "Acen", "Pmar", "Onil", "Nbri", "Pmic", "Sdia", "Hbur", "Mzeb", "Acal", "Bspl", "Gacu",
-           "Olat", "Nfur", "Fhet", "Pret", "Xmac", "Aoce",
-           "Trub", "Gmor", "Eluc", "Char", "Drer", "Amex", "Pkin", "Aang",
-           "Locu", "Ecal", "Hsap", "Mmus", "Ggal", "Xtro", "Lcha", "Cmil", "Bflo"]
 
 # ---------------------------------------------------------------- project species
 [[organism]]

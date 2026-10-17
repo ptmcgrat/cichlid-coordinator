@@ -1,14 +1,14 @@
 # OrthoFinder repository: instruction sheet
 
-*For the `cichlid-orthofinder` repository. October 2026. Written against cichlid-coordinator v0.8.0. Read first: `project_manifest.md` (why the project exists), `species_final.md` (the species), and `coordinator_spec.md` (the layout, the schemas and the family contract, which this sheet relies on).*
+*For the `cichlid-orthofinder` repository. October 2026. Written against cichlid-coordinator v0.9.0. Read first: `project_manifest.md` (why the project exists), `species_final.md` (the species), and `coordinator_spec.md` (the layout, the schemas and the family contract, which this sheet relies on).*
 
 ## 1. Role
 
 This repository runs OrthoFinder on the project's 35 proteomes and turns its gene trees into the project's standard family format. It owns:
 
 1. **The OrthoFinder run:** the settings in section 4, run reproducibly.
-2. **The conversion:** OrthoFinder's orthogroups and gene trees into `Results/OrthoFinder2026/assign/` and `families/`, following the family contract.
-3. **OrthoFinder's own outputs,** kept as written in `Results/OrthoFinder2026/native/`, so they are backed up and can be pulled by anyone.
+2. **The conversion:** OrthoFinder's orthogroups and gene trees into `Results/v1/OrthoFinder/assign/` and `families/`, following the family contract.
+3. **OrthoFinder's own outputs,** kept as written in `Results/v1/OrthoFinder/native/`, so they are backed up and can be pulled by anyone.
 
 It does **not** make orthology calls, name genes, find human or zebrafish orthologs, or analyze results. The homology decider (project 3, `cichlid-homology`) reads the families this repository writes and calls them, with the same rule it uses for TreeFam and Compara, so the three methods' calls are comparable: differences between them then reflect the trees, not the calling logic.
 
@@ -19,13 +19,13 @@ It does **not** make orthology calls, name genes, find human or zebrafish orthol
 - Never download an input. The proteomes come from the catalog.
 - Never copy the species list or the species tree into this repository. Read them from the catalog.
 
-Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.8,<0.9`, and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API; v0.9.0 is planned to (releases: `Results/<release>/<Part>/`), and this sheet will be updated for it.
+Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.9,<0.10`, and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API (v0.9.0 did: results are now `Results/<release>/<part>/`).
 
 ## 2. Repository layout (suggested)
 
 ```
 cichlid-orthofinder/
-├── pyproject.toml           package cichlid_orthofinder; depends on cichlid-coordinator>=0.8,<0.9
+├── pyproject.toml           package cichlid_orthofinder; depends on cichlid-coordinator>=0.9,<0.10
 ├── src/cichlid_orthofinder/
 │   ├── run.py               prepare the input folder, run OrthoFinder, record the settings
 │   ├── convert.py           orthogroups and gene trees -> assign/ and families/
@@ -41,11 +41,11 @@ Moving code in from elsewhere follows the same rule as in the coordinator: verba
 
 | Input | How to get it |
 |---|---|
-| The species | `Catalog.load(get_layout()).species(method="OrthoFinder2026")`: the 35 species, in the catalog's order |
-| The proteomes | `get_layout().proteome(prefix)`: one protein per gene, headers `>gene_id`, already valid. Make sure they are local first: `cichlid-data check --method OrthoFinder2026 --fetch` (which also verifies the species tree) |
-| The species tree | `Catalog.load(layout).species_tree("OrthoFinder2026")`, or `cichlid-data catalog tree --method OrthoFinder2026`: rooted, fully resolved, leaves = the species prefixes |
+| The species | `Catalog.load(get_layout()).species(release="v1", part="OrthoFinder")`: the 35 species, in the catalog's order |
+| The proteomes | `get_layout().proteome(prefix)`: one protein per gene, headers `>gene_id`, already valid. Make sure they are local first: `cichlid-data check --release v1 --part OrthoFinder --fetch` (which also verifies the species tree) |
+| The species tree | `Catalog.load(layout).species_tree("v1", "OrthoFinder")`, or `cichlid-data catalog tree --release v1 --part OrthoFinder`: rooted, fully resolved, leaves = the species prefixes |
 
-Run `cichlid-data check --method OrthoFinder2026 --fetch` before every run; stop if it fails.
+Run `cichlid-data check --release v1 --part OrthoFinder --fetch` before every run; stop if it fails.
 
 **Names matter.** OrthoFinder takes a species' name from its proteome file name, and `-s` needs the species tree's leaves to be those names. So the input folder OrthoFinder reads holds one file per species named `<prefix>.faa` (links or copies of the coordinator's proteomes; the file extension OrthoFinder accepts is *to confirm* against the installed version). Do not rename a species anywhere.
 
@@ -64,18 +64,18 @@ Agreed settings:
 
 Every setting actually used goes into `run.json` (`parameters`), together with the OrthoFinder version (`method_version`), the IQ-TREE and alignment-program versions, and the command line. A run that can't say how it was made is not accepted.
 
-**Where the two runs go.** The first run, with our species tree, is the one that becomes `Results/OrthoFinder2026/`: its families are converted and called. The second run, with OrthoFinder's own tree, is a comparison: keep its OrthoFinder output under `Results/OrthoFinder2026/native/<a name for it>/` (for example `native/own_species_tree/`), and do not convert it. *(This arrangement is an assumption to confirm: if calls are wanted from the second run it becomes a run of its own, with its own name and catalog entry.)* Each top-level folder under `native/` is stored as a separate tar, so adding the second run does not repack the first.
+**Where the two runs go.** The first run, with our species tree, is the one that becomes `Results/v1/OrthoFinder/`: its families are converted and called. The second run, with OrthoFinder's own tree, is a comparison: keep its OrthoFinder output under `Results/OrthoFinder2026/native/<a name for it>/` (for example `native/own_species_tree/`), and do not convert it. *(This arrangement is an assumption to confirm: if calls are wanted from the second run it becomes a run of its own, with its own name and catalog entry.)* Each top-level folder under `native/` is stored as a separate tar, so adding the second run does not repack the first.
 
 ## 5. Outputs
 
-Everything below is under `get_layout().results("OrthoFinder2026")` (a `ResultsLayout`):
+Everything below is under `get_layout().results("v1", "OrthoFinder")` (a `ResultsLayout`; `v1` is the release, which is the coordinator's to name, and `OrthoFinder` the part):
 
 | Path | Content |
 |---|---|
 | `assign/<prefix>.assign.tsv` | one per species, the existing assignment schema: `gene_id` and `protein_length` for every gene; `best_family` is the gene's orthogroup, **empty for a gene in none**; the score, coverage and fusion columns **empty** (they belong to placement methods) |
 | `families/<family>/` | one folder per orthogroup, the family contract below |
 | `native/` | OrthoFinder's own result folders, as it wrote them (see below) |
-| `run.json` | the run record: `method` (`OrthoFinder`), `method_version`, `parameters`, `started`, `finished`, `coordinator_version`, `catalog_md5`, `species` (the 35 prefixes). Write it with `schemas.write_run`, taking `coordinator_version` from `cichlid_data.__version__` and `catalog_md5` from `Catalog.load(layout).md5()` (never compute either by hand) |
+| `run.json` | the run record: `release` (`v1`; it must match the folder it is in), `method` (`OrthoFinder`), `method_version`, `parameters`, `started`, `finished`, `coordinator_version`, `catalog_md5`, `species` (the 35 prefixes). Write it with `schemas.write_run`, taking `coordinator_version` from `cichlid_data.__version__` and `catalog_md5` from `Catalog.load(layout).md5()` (never compute either by hand) |
 
 ### The family contract (summary; the full text is in `coordinator_spec.md`)
 
@@ -83,7 +83,7 @@ For every **orthogroup** (OrthoFinder's primary orthogroups, `OG0001234`; they h
 
 - **`tree.nwk`**: OrthoFinder's gene tree with **every leaf renamed back to our gene ID** (`<prefix>_<id>`). All leaves are ours: every sequence comes from the 35 proteomes, so there are no reference-protein IDs. A leaf that still looks like `0_123` is refused by validation. Keep OrthoFinder's branch lengths and supports.
 - **`combined.aln`**: required. The orthogroup's alignment (aligned FASTA), rows renamed to the same gene IDs, with a row for every leaf. (The name is the placement methods'; they write other files beside it, which OrthoFinder families do not have.)
-- **`done.json`**: a JSON object with the inputs hash that lets a rerun skip finished families, and the rooting. OrthoFinder roots its gene trees using the species tree, so write `"rooted": true` and `"rooting": "orthofinder species tree"`, **but only if the root of that `tree.nwk` really has two children** (validation checks it). If a tree arrives unrooted, write `"rooted": false` and leave the rooting to the homology decider, which midpoint-roots it. Never write `"rooted": true` to mean "probably".
+- **`done.json`**: a JSON object with the inputs hash that lets a rerun skip finished families, `"release": "v1"`, and the rooting. OrthoFinder roots its gene trees using the species tree, so write `"rooted": true` and `"rooting": "orthofinder species tree"`, **but only if the root of that `tree.nwk` really has two children** (validation checks it). If a tree arrives unrooted, write `"rooted": false` and leave the rooting to the homology decider, which midpoint-roots it. Never write `"rooted": true` to mean "probably".
 
 The families are the **orthogroups (`OG…`)**; the hierarchical orthogroups (`N0.HOG…`) are not converted and stay in `native/` with the rest of OrthoFinder's output. An orthogroup for which OrthoFinder wrote no gene tree gets no family folder; its genes still appear in `assign/` with their orthogroup, and in OrthoFinder's own tables. Report how many there are in the conversion's summary, so the gap is visible.
 
@@ -104,12 +104,12 @@ Conversion is deterministic: the same OrthoFinder output gives the same files, b
 ## 7. Validation and handing over
 
 ```bash
-cichlid-data check --method OrthoFinder2026 --fetch                    # before a run: 35 proteomes and the species tree
-R=$(cichlid-data where results OrthoFinder2026)                        # never type the data root
+cichlid-data check --release v1 --part OrthoFinder --fetch           # before a run: 35 proteomes and the species tree
+R=$(cichlid-data where results v1 OrthoFinder)                        # never type the data root
 cichlid-data validate "$R"/assign/*.assign.tsv                         # one per species
 cichlid-data validate "$R"/families                                    # every family folder, leaf names checked against the catalog
 cichlid-data validate "$R"/run.json
-cichlid-data push 'results/OrthoFinder2026/*' --dry-run                # then without --dry-run
+cichlid-data push 'results/v1/OrthoFinder/*' --dry-run                # then without --dry-run
 ```
 
 Hand over to the homology decider only when all of these pass. The tests of this repository use small fake OrthoFinder output folders and run offline; they must cover the renaming (including a leaf that cannot be mapped), a gene in no orthogroup, rooted and unrooted trees, and the byte-for-byte repeatability of the conversion.
@@ -125,9 +125,9 @@ Hand over to the homology decider only when all of these pass. The tests of this
 ## 9. Acceptance criteria
 
 1. The tests run offline and pass.
-2. `cichlid-data check --method OrthoFinder2026` passes, and the species tree used for `-s` is the catalog's, byte for byte.
+2. `cichlid-data check --release v1 --part OrthoFinder` passes, and the species tree used for `-s` is the catalog's, byte for byte.
 3. `run.json` records the OrthoFinder version, every setting, and the coordinator version and catalog checksum, and passes `cichlid-data validate`.
 4. Every `assign` file and every family folder passes `cichlid-data validate`, with no leaf left in OrthoFinder's internal naming.
 5. Every gene of every proteome appears in its species' assignment file.
-6. The first run's results and its native outputs are pushed, and `cichlid-data status 'results/OrthoFinder2026/*'` shows everything in sync.
+6. The first run's results and its native outputs are pushed, and `cichlid-data status 'results/v1/OrthoFinder/*'` shows everything in sync.
 7. No other path, species list or cloud call appears anywhere in the code.

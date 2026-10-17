@@ -156,8 +156,8 @@ class TestCli(unittest.TestCase):
     def test_where_env_units_push_status(self):
         self.assertEqual(self.run_cli("where", "proteome", "Mzeb").strip(),
                          str(self.e.a.local_root / "Inputs/Proteins/proteomes/Mzeb.faa"))
-        self.assertEqual(self.run_cli("where", "results", "Compara2026", "orthology", "--cloud").strip(),
-                         "fake:/Results/Compara2026/orthology")
+        self.assertEqual(self.run_cli("where", "results", "v1", "Compara", "orthology", "--cloud").strip(),
+                         "fake:/Results/v1/Compara/orthology")
         self.assertIn("export CICHLID_PROTEOMES=", self.run_cli("env"))
         self.assertIn("families/TreeFam9/hmm", self.run_cli("units", "families/*"))
         write(self.e.a.proteome("Mzeb").local, ">Mzeb_1\nM\n")

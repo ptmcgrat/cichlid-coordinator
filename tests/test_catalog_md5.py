@@ -59,10 +59,10 @@ class TestCatalogMd5(unittest.TestCase):
     def test_a_run_record_built_from_the_helper_validates(self):
         Catalog.build(self.L, self.cfg).write(self.L)
         C = Catalog.load(self.L)
-        run = self.L.results("OrthoFinder2026").run_record().local
-        schemas.write_run(run, method="OrthoFinder", method_version="x", parameters={"-M": "msa"},
+        run = self.L.results("v1", "OrthoFinder").run_record().local
+        schemas.write_run(run, release="v1", method="OrthoFinder", method_version="x", parameters={"-M": "msa"},
                           started="t0", finished="t1", coordinator_version=__version__, catalog_md5=C.md5(),
-                          species=[s.prefix for s in C.species(method="OrthoFinder2026")])
+                          species=[s.prefix for s in C.species(release="v1", part="OrthoFinder")])
         self.assertEqual(schemas.validate(run), [])
         self.assertIn(C.md5(), run.read_text())
 

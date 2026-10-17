@@ -267,10 +267,11 @@ class TestCommands(unittest.TestCase):
         from contextlib import redirect_stdout
         from cichlid_data import Settings
         from cichlid_data.cli import main as cli
-        from helpers import Env, write
+        from helpers import Env, releases_toml, write
         e = Env()
         try:
             cfg = e.a.local_root.parent / "cfg"
+            write(cfg / "releases.toml", releases_toml({"OrthoFinder": 'species = ["Onil"]'}, deliver=()))
             write(cfg / "species.tsv", f"prefix\tspecies\taccession\tsource\tannotation_format\nOnil\tOreochromis niloticus\t{ACC}\tncbi\tgff3\n")
             write(cfg / "species_sets.toml", '[[organism]]\nprefix = "Onil"\nspecies = "Oreochromis niloticus"\nrole = "project"\n')
             os.environ["CICHLID_DATA_CONFIG_DIR"] = str(cfg)

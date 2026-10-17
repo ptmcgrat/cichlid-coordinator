@@ -13,7 +13,7 @@ from pathlib import Path
 from cichlid_data import Layout, Settings, schemas
 from cichlid_data import proteomes as pr
 from cichlid_data.cli import main as cli
-from helpers import Env, write
+from helpers import Env, releases_toml, write
 
 # RefSeq-shaped GFF3 covering the cases that bit the 2018 code
 GFF = """##gff-version 3
@@ -307,7 +307,8 @@ class TestCoordinatorAdditions(unittest.TestCase):
             shutil.rmtree(e.a.download("Onil").local)
             cfg = e.a.local_root.parent / "cfg"
             write(cfg / "species.tsv", MANIFEST)
-            write(cfg / "species_sets.toml", '[methods.OrthoFinder2026]\nspecies = ["Onil"]\n[[organism]]\nprefix = "Onil"\n'
+            write(cfg / "releases.toml", releases_toml({"OrthoFinder": 'species = ["Onil"]'}, deliver=()))
+            write(cfg / "species_sets.toml", '[[organism]]\nprefix = "Onil"\n'
                                              'species = "Oreochromis niloticus"\nrole = "project"\n[[organism]]\n'
                                              'prefix = "Brk"\nspecies = "Etroplus suratensis"\nrole = "project"\n')
             os.environ["CICHLID_DATA_CONFIG_DIR"] = str(cfg)

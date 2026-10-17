@@ -8,13 +8,11 @@ from cichlid_data import Catalog, Settings, schemas
 from cichlid_data.check import check
 from cichlid_data.cli import main as cli
 from cichlid_data.provenance import SourceRecord, inventory
-from helpers import Env, write
+from helpers import Env, releases_toml, write
 
-SETS = '''[methods.TreeFam2026]
-queries = "project"
-[methods.OrthoFinder2026]
-species = ["Mzeb", "Drer"]
-[[organism]]
+RELEASES = releases_toml({"TreeFam": 'queries = "project"', "OrthoFinder": 'species = ["Mzeb", "Drer"]',
+                          "Homology": 'description = "calls"'})
+SETS = '''[[organism]]
 prefix = "Mzeb"
 species = "Maylandia zebra"
 role = "project"
@@ -34,6 +32,7 @@ def proteome(L, p, seq="MKLV"):
 def setup(root):
     cfg = Path(root) / "cfg"
     write(cfg / "species_sets.toml", SETS)
+    write(cfg / "releases.toml", RELEASES)
     write(cfg / "species.tsv", "prefix\tspecies\taccession\tsource\nMzeb\tMaylandia zebra\tGCF_1\tncbi\n")
     L = __import__("cichlid_data").Layout(Path(root) / "data", "fake:")
     tf = L.family_resource("TreeFam9").local
@@ -59,11 +58,13 @@ class TestCheck(unittest.TestCase):
 
     def test_complete_method_passes_and_problems_are_reported(self):
         f = self.findings()
-        tf = {k: v for k, v in f.items() if k[0] == "TreeFam2026"}
+        tf = {k: v for k, v in f.items() if k[0] == "v1/TreeFam"}
         self.assertTrue(all(v.ok for v in tf.values()), [v for v in tf.values() if not v.ok])
-        self.assertEqual(f[("TreeFam2026", "Inputs/Families/TreeFam9/hmm")].detail, "matches its source record")
-        self.assertEqual(f[("TreeFam2026", "Inputs/Annotations/Legacy2018")].detail, "no source record")
-        self.assertEqual((f[("OrthoFinder2026", "proteome Drer")].ok, f[("OrthoFinder2026", "proteome Drer")].detail),
+        self.assertEqual(f[("v1/TreeFam", "Inputs/Families/TreeFam9/hmm")].detail, "matches its source record")
+        # the 2018 name tables are the Homology part's requirement, not TreeFam's
+        self.assertEqual(f[("v1/Homology", "Inputs/Annotations/Legacy2018")].detail, "no source record")
+        self.assertNotIn(("v1/TreeFam", "Inputs/Annotations/Legacy2018"), f)
+        self.assertEqual((f[("v1/OrthoFinder", "proteome Drer")].ok, f[("v1/OrthoFinder", "proteome Drer")].detail),
                          (False, "missing"))
         # an invalid proteome, an empty folder, and a resource that no longer matches its record
         write(self.L.proteome("Mzeb").local, ">Mzeb_1\nMK*V\n")
@@ -71,15 +72,24 @@ class TestCheck(unittest.TestCase):
             t.unlink()
         (self.L.family_resource("TreeFam9").local / "protein_to_species.txt").write_text("changed contents")
         f = self.findings()
-        self.assertIn("amino-acid alphabet", f[("TreeFam2026", "proteome Mzeb")].detail)
-        self.assertEqual(f[("TreeFam2026", "Inputs/Families/TreeFam9/trees")].detail, "empty")
+        self.assertIn("amino-acid alphabet", f[("v1/TreeFam", "proteome Mzeb")].detail)
+        self.assertEqual(f[("v1/TreeFam", "Inputs/Families/TreeFam9/trees")].detail, "empty")
         self.assertIn("size changed: protein_to_species.txt",
-                      f[("TreeFam2026", "Inputs/Families/TreeFam9/protein_to_species.txt")].detail)
+                      f[("v1/TreeFam", "Inputs/Families/TreeFam9/protein_to_species.txt")].detail)
 
     def test_deep_check_catches_same_size_changes(self):
         (self.L.family_resource("TreeFam9").local / "protein_to_species.txt").write_text("b\thuman\n")   # same size
-        self.assertTrue(self.findings()[("TreeFam2026", "Inputs/Families/TreeFam9/protein_to_species.txt")].ok)
-        self.assertFalse(self.findings(deep=True)[("TreeFam2026", "Inputs/Families/TreeFam9/protein_to_species.txt")].ok)
+        self.assertTrue(self.findings()[("v1/TreeFam", "Inputs/Families/TreeFam9/protein_to_species.txt")].ok)
+        self.assertFalse(self.findings(deep=True)[("v1/TreeFam", "Inputs/Families/TreeFam9/protein_to_species.txt")].ok)
+
+    def test_release_and_part_selection(self):
+        C = Catalog.build(self.L, self.cfg)
+        self.assertEqual({f.method for f in check(self.L, C)}, {"v1/TreeFam", "v1/OrthoFinder", "v1/Homology"})
+        self.assertEqual({f.method for f in check(self.L, C, release="v1", parts=["Homology"])}, {"v1/Homology"})
+        self.assertEqual([(f.method, f.item, f.ok) for f in check(self.L, C, release="v1", parts=["Compara"])],
+                         [("v1/Compara", "part", False)])
+        with self.assertRaises(KeyError):
+            check(self.L, C, release="v9")
 
     def test_fetch_and_command(self):
         import os
@@ -97,8 +107,8 @@ class TestCheck(unittest.TestCase):
             s = Settings(local_root=L.local_root, cloud_remote="fake:")
             out = io.StringIO()
             with redirect_stdout(out):
-                cli(["check", "--method", "OrthoFinder2026", "--fetch"], backend=LocalBackend(e.cloud), settings=s)
-            self.assertIn("OrthoFinder2026: 2 of 2 inputs ready", out.getvalue())
+                cli(["check", "--release", "v1", "--part", "OrthoFinder", "--fetch"], backend=LocalBackend(e.cloud), settings=s)
+            self.assertIn("v1/OrthoFinder: 2 of 2 inputs ready", out.getvalue())
             self.assertTrue(L.proteome("Drer").local.is_file())
             (L.family_resource("TreeFam9").local / "protein_to_species.txt").unlink()
             out = io.StringIO()

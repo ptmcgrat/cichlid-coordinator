@@ -6,14 +6,35 @@
     open(L.proteome("Mzeb"))      # DataPath works wherever a path does (it is the local path)
 
 All paths are relative to one root, identical locally and in the cloud.
+
+Results belong to a release (one number shared by every project: v1, v2, ...) and a part (the project
+that wrote them): Results/<release>/<part>/. Releases/<release>/ is the frozen archive of a release.
+
+    L.results("v1", "OrthoFinder").family("OG0001234").local
+    L.release("v1").proteome("Mzeb").local
 """
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
-INPUTS, RESULTS, ANALYSES = "Inputs", "Results", "Analyses"
+INPUTS, RESULTS, ANALYSES, RELEASES = "Inputs", "Results", "Analyses", "Releases"
 PROTEINS = f"{INPUTS}/Proteins"
 FAMILIES = f"{INPUTS}/Families"
+RELEASE_RE = re.compile(r"^v[0-9]+$")
+RESULT_PARTS = ("TreeFam", "Compara", "OrthoFinder", "Homology", "Analysis")
+
+
+def check_release(release):
+    if not RELEASE_RE.match(str(release)):
+        raise ValueError(f"release {release!r} must be 'v' and a number (v1, v2, ...)")
+    return release
+
+
+def check_part(part):
+    if part not in RESULT_PARTS:
+        raise KeyError(f"unknown part {part!r} (one of {', '.join(RESULT_PARTS)})")
+    return part
 
 
 @dataclass(frozen=True)
@@ -43,15 +64,15 @@ class DataPath:
 
 
 class ResultsLayout:
-    """Identical structure for every method's results: Results/<run>/...
+    """Identical structure for every part's results: Results/<release>/<part>/...
 
-    native/ holds a method's own outputs (OrthoFinder's result folders, say), kept beside the standard
-    parts so they are backed up and pulled like everything else."""
-    PARTS = ("assign", "families", "names", "native", "orthology", "residues", "site")
+    native/ holds a part's own outputs (OrthoFinder's result folders, say), kept beside the standard
+    sections so they are backed up and pulled like everything else."""
+    SECTIONS = ("assign", "families", "names", "native", "orthology", "residues", "site")
 
-    def __init__(self, layout, run):
-        self.layout, self.run = layout, run
-        self.base = f"{RESULTS}/{run}"
+    def __init__(self, layout, release, part):
+        self.layout, self.release, self.part = layout, check_release(release), check_part(part)
+        self.base = f"{RESULTS}/{release}/{part}"
 
     def _p(self, rel):
         return DataPath(f"{self.base}/{rel}", self.layout)
@@ -59,10 +80,10 @@ class ResultsLayout:
     def root(self):
         return DataPath(self.base, self.layout)
 
-    def part(self, part):
-        if part not in self.PARTS:
-            raise KeyError(f"unknown results part {part!r} (one of {', '.join(self.PARTS)})")
-        return self._p(part)
+    def section(self, section):
+        if section not in self.SECTIONS:
+            raise KeyError(f"unknown results section {section!r} (one of {', '.join(self.SECTIONS)})")
+        return self._p(section)
 
     def assign(self, prefix):
         return self._p(f"assign/{prefix}.assign.tsv")
@@ -88,9 +109,44 @@ class ResultsLayout:
     def run_record(self):
         return self._p("run.json")
 
-    def unit(self, part):
+    def unit(self, section):
         from .units import Registry
-        return Registry(self.layout).get(f"results/{self.run}/{part}")
+        return Registry(self.layout).get(f"results/{self.release}/{self.part}/{section}")
+
+
+class ReleaseLayout:
+    """Releases/<release>/: the frozen archive of one release (written by `cichlid-data release freeze`):
+    release.json (what the release is, with checksums), catalog.json, proteomes/, genes/ and config/
+    (the species trees), exactly as they were when it was frozen."""
+
+    def __init__(self, layout, release):
+        self.layout, self.release = layout, check_release(release)
+        self.base = f"{RELEASES}/{release}"
+
+    def _p(self, rel):
+        return DataPath(f"{self.base}/{rel}", self.layout)
+
+    def root(self):
+        return DataPath(self.base, self.layout)
+
+    def manifest(self):
+        return self._p("release.json")
+
+    def catalog(self):
+        return self._p("catalog.json")
+
+    def proteome(self, prefix):
+        return self._p(f"proteomes/{prefix}.faa")
+
+    def genes_table(self, prefix):
+        return self._p(f"genes/{prefix}.genes.tsv")
+
+    def species_tree(self, name):
+        return self._p(f"config/{name}")
+
+    def unit(self):
+        from .units import Registry
+        return Registry(self.layout).get(f"releases/{self.release}")
 
 
 class Layout:
@@ -142,12 +198,27 @@ class Layout:
         return self.path(f"Archive/{name}")
 
     # ---- results and analyses
-    def results(self, run):
-        return ResultsLayout(self, run)
+    def results(self, release, part):
+        return ResultsLayout(self, release, part)
+
+    def release(self, release):
+        return ReleaseLayout(self, release)
 
     def runs(self):
+        """(release, part) of every results folder on this machine."""
         d = self.local_root / RESULTS
-        return sorted(e.name for e in d.iterdir() if e.is_dir()) if d.is_dir() else []
+        out = []
+        for r in sorted(e for e in d.iterdir() if e.is_dir()) if d.is_dir() else []:
+            out += [(r.name, p.name) for p in sorted(r.iterdir()) if p.is_dir() and p.name in RESULT_PARTS]
+        return out
+
+    def releases(self):
+        """The releases that have results or a frozen archive on this machine."""
+        found = {r for r, _ in self.runs()}
+        d = self.local_root / RELEASES
+        if d.is_dir():
+            found |= {e.name for e in d.iterdir() if e.is_dir() and RELEASE_RE.match(e.name)}
+        return sorted(found)
 
     def analysis(self, name):
         return self.path(f"{ANALYSES}/{name}")

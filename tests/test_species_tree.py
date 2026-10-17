@@ -1,4 +1,4 @@
-"""The species tree a method names in species_sets.toml: validated against the catalog's species."""
+"""The species tree a part of a release names in releases.toml: validated against the catalog's species."""
 import io
 import re
 import tempfile
@@ -12,14 +12,9 @@ from cichlid_data.catalog import check_species_tree, species_tree_path
 from cichlid_data.check import check
 from cichlid_data.cli import main as cli
 from cichlid_data.config import config_dir
-from helpers import write
+from helpers import releases_toml, write
 
 SETS = '''
-[methods.TreeFam2026]
-queries = "project"
-[methods.OrthoFinder2026]
-species = ["Mzeb", "Acal", "Esur", "Drer"]
-species_tree = "tree.nwk"
 [[organism]]
 prefix = "Mzeb"
 species = "Maylandia zebra"
@@ -37,12 +32,15 @@ prefix = "Drer"
 species = "Danio rerio"
 role = "reference"
 '''
+RELEASES = releases_toml({"TreeFam": 'queries = "project"',
+                          "OrthoFinder": 'species = ["Mzeb", "Acal", "Esur", "Drer"]\nspecies_tree = "tree.nwk"'})
 GOOD = "(Drer,(Esur,(Mzeb,Acal)));\n"
 
 
-def config(root, tree=GOOD, sets=SETS):
+def config(root, tree=GOOD, sets=SETS, releases=RELEASES):
     cfg = Path(root) / "config"
     write(cfg / "species_sets.toml", sets)
+    write(cfg / "releases.toml", releases)
     write(cfg / "species.tsv", "prefix\tspecies\taccession\tsource\n")
     write(cfg / "compara_panel.tsv", "species\trole\tgroup\n")
     if tree is not None:
@@ -107,21 +105,22 @@ class TestCatalogSpeciesTree(unittest.TestCase):
         cfg = config(self.root)
         C = Catalog.build(self.L, cfg)
         self.assertEqual(C.validate()[0], [])
-        self.assertEqual(C.species_tree("OrthoFinder2026"), cfg / "tree.nwk")
-        self.assertEqual(species_tree_path("OrthoFinder2026", cfg), cfg / "tree.nwk")
-        self.assertEqual(C.methods["OrthoFinder2026"]["species_tree"], "tree.nwk")
+        self.assertEqual(C.species_tree("v1", "OrthoFinder"), cfg / "tree.nwk")
+        self.assertEqual(species_tree_path("v1", "OrthoFinder", cfg), cfg / "tree.nwk")
+        self.assertEqual(species_tree_path(None, "OrthoFinder", cfg), cfg / "tree.nwk")      # the only live release
+        self.assertEqual(C.releases["v1"]["parts"]["OrthoFinder"]["species_tree"], "tree.nwk")
         self.assertIn("tree.nwk", C.meta["config"])                                # its checksum is recorded
         self.assertEqual(len(C.meta["config"]["tree.nwk"]), 32)
 
     def test_species_list_and_tree_must_agree(self):
-        cfg = config(self.root, sets=SETS.replace('"Drer"]', '"Drer", "Acen"]') +
-                     '[[organism]]\nprefix = "Acen"\nspecies = "Archocentrus centrarchus"\nrole = "project"\n')
+        cfg = config(self.root, releases=RELEASES.replace('"Drer"]', '"Drer", "Acen"]'),
+                     sets=SETS + '[[organism]]\nprefix = "Acen"\nspecies = "Archocentrus centrarchus"\nrole = "project"\n')
         errors, _ = Catalog.build(self.L, cfg).validate()
-        self.assertEqual(errors, ["OrthoFinder2026: species tree tree.nwk: species of the method missing from the "
+        self.assertEqual(errors, ["v1/OrthoFinder: species tree tree.nwk: species of the method missing from the "
                                   "tree: Acen"])
         cfg = config(self.root, tree="(Drer,(Esur,(Mzeb,(Acal,Hsap))));\n")
         errors, _ = Catalog.build(self.L, cfg).validate()
-        self.assertEqual(errors, ["OrthoFinder2026: species tree tree.nwk: leaves that are not species of the "
+        self.assertEqual(errors, ["v1/OrthoFinder: species tree tree.nwk: leaves that are not species of the "
                                   "method: Hsap"])
 
     def test_missing_tree_file_is_an_error(self):
@@ -130,17 +129,19 @@ class TestCatalogSpeciesTree(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("tree.nwk not found", errors[0])
 
-    def test_methods_without_a_tree_are_unaffected(self):
+    def test_parts_without_a_tree_are_unaffected(self):
         cfg = config(self.root)
         C = Catalog.build(self.L, cfg)
         with self.assertRaises(KeyError) as e:
-            C.species_tree("TreeFam2026")
+            C.species_tree("v1", "TreeFam")
         self.assertIn("no species_tree", str(e.exception))
         with self.assertRaises(KeyError):
-            C.species_tree("Nope")
+            C.species_tree("v1", "Nope")
         with self.assertRaises(KeyError):
-            species_tree_path("TreeFam2026", cfg)
-        cfg = config(self.root, sets=SETS.replace('species_tree = "tree.nwk"\n', ""), tree=None)
+            C.species_tree("v9", "OrthoFinder")
+        with self.assertRaises(KeyError):
+            species_tree_path("v1", "TreeFam", cfg)
+        cfg = config(self.root, releases=RELEASES.replace('species_tree = "tree.nwk"\n', ""), tree=None)
         self.assertEqual(Catalog.build(self.L, cfg).validate()[0], [])
 
     def test_catalog_build_refuses_to_write_an_invalid_tree(self):
@@ -160,17 +161,18 @@ class TestCatalogSpeciesTree(unittest.TestCase):
                 cli(["catalog", "build"], settings=s)
             self.assertTrue(self.L.catalog().local.is_file())
             C = Catalog.load(self.L)                                                # loaded: tree found via config_dir
-            self.assertEqual(C.species_tree("OrthoFinder2026"), cfg / "tree.nwk")
+            self.assertEqual(C.species_tree("v1", "OrthoFinder"), cfg / "tree.nwk")
             f = io.StringIO()
             with redirect_stdout(f):
-                cli(["catalog", "tree", "--method", "OrthoFinder2026"], settings=s)
-            self.assertEqual(f.getvalue().strip(), str(cfg / "tree.nwk"))
+                cli(["catalog", "tree", "--part", "OrthoFinder"], settings=s)
+                cli(["catalog", "tree", "--release", "v1", "--part", "OrthoFinder"], settings=s)
+            self.assertEqual(f.getvalue().split(), [str(cfg / "tree.nwk")] * 2)
             with self.assertRaises(SystemExit) as e:
-                cli(["catalog", "tree", "--method", "TreeFam2026"], settings=s)
+                cli(["catalog", "tree", "--release", "v1", "--part", "TreeFam"], settings=s)
             self.assertIn("no species_tree", str(e.exception))
             with self.assertRaises(SystemExit) as e:
                 cli(["catalog", "tree"], settings=s)
-            self.assertIn("needs --method", str(e.exception))
+            self.assertIn("needs --part", str(e.exception))
         finally:
             os.environ.pop("CICHLID_DATA_CONFIG_DIR", None)
 
@@ -184,26 +186,38 @@ class TestCheckFinding(unittest.TestCase):
                 write(L.proteome(p).local, f">{p}_1\nMK\n")
             cfg = config(root)
             C = Catalog.build(L, cfg)
-            found = [f for f in check(L, C, ["OrthoFinder2026"]) if f.item.startswith("species tree")]
-            self.assertEqual([(f.item, f.ok, f.detail) for f in found], [("species tree tree.nwk", True, "valid")])
+            found = [f for f in check(L, C, release="v1", parts=["OrthoFinder"]) if f.item.startswith("species tree")]
+            self.assertEqual([(f.method, f.item, f.ok, f.detail) for f in found],
+                             [("v1/OrthoFinder", "species tree tree.nwk", True, "valid")])
             write(cfg / "tree.nwk", "(Drer,(Esur,(Mzeb,Hsap)));\n")
-            found = [f for f in check(L, C, ["OrthoFinder2026"]) if f.item.startswith("species tree")]
+            found = [f for f in check(L, C, release="v1", parts=["OrthoFinder"]) if f.item.startswith("species tree")]
             self.assertFalse(found[0].ok)
             self.assertIn("not species of the method: Hsap", found[0].detail)
-            self.assertEqual([f.item for f in check(L, C, ["TreeFam2026"]) if f.item.startswith("species tree")], [])
+            self.assertEqual([f.item for f in check(L, C, release="v1", parts=["TreeFam"])
+                              if f.item.startswith("species tree")], [])
 
 
 class TestRepositoryFiles(unittest.TestCase):
     """The repository's own configuration."""
 
     def test_orthofinder_species_tree_matches_the_species_list(self):
-        sets = tomllib.loads((config_dir() / "species_sets.toml").read_text())
-        m = sets["methods"]["OrthoFinder2026"]
+        rels = tomllib.loads((config_dir() / "releases.toml").read_text())
+        m = rels["releases"]["v1"]["parts"]["OrthoFinder"]
         self.assertEqual(m["species_tree"], "species_tree_orthofinder.nwk")
+        self.assertEqual(species_tree_path("v1", "OrthoFinder"), config_dir() / m["species_tree"])
         self.assertEqual(check_species_tree(config_dir() / m["species_tree"], m["species"]), [])
         root = newick.parse((config_dir() / m["species_tree"]).read_text())
         self.assertEqual(len(root.leaves()), 35)
         self.assertEqual(len(root.children), 2)
+
+    def test_every_file_a_release_names_exists(self):
+        """`release freeze` copies these into the archive, so they must be there."""
+        rels = tomllib.loads((config_dir() / "releases.toml").read_text())["releases"]
+        named = [(r, part, m[k]) for r, v in rels.items() for part, m in v["parts"].items()
+                 for k in ("species_tree", "reference_panel") if m.get(k)]
+        self.assertTrue(named)
+        for r, part, name in named:
+            self.assertTrue((config_dir() / name).is_file(), f"{r}/{part}: config/{name} is missing")
 
     def test_species_tree_agrees_with_species_final(self):
         doc = config_dir().parent / "docs" / "species_final.md"

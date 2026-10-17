@@ -1,20 +1,24 @@
-"""The species catalog: every organism, its role, source, files, counts, and the methods using it.
+"""The species catalog: every organism, its role, source, files, counts, and the releases using it.
 
     C = Catalog.build(get_layout())      # from config/ and what is on disk; C.write() saves catalog.json
     C = Catalog.load(get_layout())
-    C.species(method="OrthoFinder2026")  # -> [Species]
-    C.missing("OrthoFinder2026")         # organisms a method needs whose proteome is not ready
+    C.species(release="v1", part="OrthoFinder")   # -> [Species]
+    C.missing("v1", "OrthoFinder")       # organisms a part needs whose proteome is not ready
     C["Mzeb"].proteome                   # relative path of its proteome
-    C.species_tree("OrthoFinder2026")    # path of the rooted species tree its run must use (-s)
+    C.species_tree("v1", "OrthoFinder")  # path of the rooted species tree its run must use (-s)
+    C.releases["v1"]["deliver"]          # the species whose calls the release delivers
     C.md5()                              # checksum of catalog.json, for run.json's catalog_md5
 
-A method may name a species tree in species_sets.toml (species_tree = "species_tree_orthofinder.nwk",
-a file in config/). It must be rooted, fully resolved, and have exactly the method's species as
-leaves; `validate` checks this, so the tree and the species list cannot drift apart.
+A release (v1, v2, ...) is one state of the whole resource, shared by every project: its status
+(planned, building, frozen, published, superseded), the species it delivers, the versions of its inputs,
+and its parts (TreeFam, Compara, OrthoFinder, Homology, Analysis), each with the species it runs on.
+A part may name a species tree (species_tree = "species_tree_orthofinder.nwk", a file in config/). It must
+be rooted, fully resolved, and have exactly the part's species as leaves; `validate` checks this, so the
+tree and the species list cannot drift apart.
 
-Built from config/species_sets.toml (organisms, roles, method membership), config/species.tsv
-(what Stage 1 downloads), config/compara_panel.tsv (Compara's reference panel), and the data:
-each organism's source record (Stage 1's download.json, or source.json), and whether its download
+Built from config/species_sets.toml (organisms and roles), config/releases.toml (releases and their parts),
+config/species.tsv (what Stage 1 downloads), config/compara_panel.tsv (Compara's reference panel), and the
+data: each organism's source record (Stage 1's download.json, or source.json), and whether its download
 and proteome exist.
 """
 import csv
@@ -27,11 +31,15 @@ from pathlib import Path
 
 from . import __version__, newick
 from .config import config_dir
+from .layout import RELEASE_RE, RESULT_PARTS
 from .provenance import md5sum, read_record
 
 ROLES = ("project", "relative", "reference", "outgroup", "candidate")
 PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*$")
-CATALOG_VERSION = 1
+CATALOG_VERSION = 2
+STATUSES = ("planned", "building", "frozen", "published", "superseded")
+FROZEN_STATUSES = ("frozen", "published")        # these have an archive in Releases/<release>/
+TREE_PARTS = ("TreeFam", "Compara", "OrthoFinder")   # the parts that run on a list of species
 
 
 @dataclass
@@ -118,21 +126,44 @@ def check_species_tree(path, species):
     return problems
 
 
-def species_tree_path(method, cfg=None):
-    """Path of the species tree file a method names in species_sets.toml; KeyError if it names none."""
+def species_tree_path(release, part, cfg=None):
+    """Path of the species tree file a part names in releases.toml; KeyError if it names none."""
     cfg = Path(cfg or config_dir())
-    sets = tomllib.loads((cfg / "species_sets.toml").read_text())
-    name = sets.get("methods", {}).get(method, {}).get("species_tree")
+    rels = tomllib.loads((cfg / "releases.toml").read_text()).get("releases", {})
+    if release is None:
+        live = [r for r, v in rels.items() if v.get("status") != "superseded"]
+        if len(live) != 1:
+            raise KeyError("give a release (one of " + ", ".join(rels) + ")")
+        release = live[0]
+    name = rels.get(release, {}).get("parts", {}).get(part, {}).get("species_tree")
     if not name:
-        raise KeyError(f"{method} has no species_tree in species_sets.toml")
+        raise KeyError(f"{release}/{part} has no species_tree in releases.toml")
     return cfg / name
 
 
+def read_releases(cfg, organisms):
+    """config/releases.toml -> release -> {status, description, deliver, inputs, parts: part -> {species, ...}}."""
+    path = Path(cfg) / "releases.toml"
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} not found (releases and their parts are defined there)")
+    out = {}
+    for rel, r in tomllib.loads(path.read_text()).get("releases", {}).items():
+        parts = {}
+        for part, m in r.get("parts", {}).items():
+            members = ([p for p, s in organisms.items() if s.role == "project"] if m.get("queries") == "project"
+                       else list(m.get("species", [])))
+            parts[part] = {k: v for k, v in m.items() if k != "species"}
+            parts[part]["species"] = members
+        out[rel] = {"status": r.get("status", ""), "description": r.get("description", ""),
+                    "deliver": list(r.get("deliver", [])), "inputs": dict(r.get("inputs", {})), "parts": parts}
+    return out
+
+
 class Catalog:
-    def __init__(self, organisms, methods, panel, meta=None, cfg=None, path=None):
+    def __init__(self, organisms, releases, panel, meta=None, cfg=None, path=None):
         self.path = Path(path) if path else None    # the catalog.json it was loaded from or written to
         self.organisms = organisms              # prefix -> Species
-        self.methods = methods                  # name -> {"description", "species": [prefixes], ...}
+        self.releases = releases                # release -> {"status", "deliver", "inputs", "parts": {part: {"species": [...], ...}}}
         self.panel = panel
         self.meta = meta or {}
         self.cfg = Path(cfg) if cfg else None   # config folder it was built from (None when loaded)
@@ -154,12 +185,7 @@ class Catalog:
             if p not in organisms:
                 organisms[p] = Species(prefix=p, species=row.get("species", ""), role="project",
                                        notes="in species.tsv but not in species_sets.toml")
-        methods = {}
-        for name, m in sets.get("methods", {}).items():
-            members = ([p for p, s in organisms.items() if s.role == "project"] if m.get("queries") == "project"
-                       else list(m.get("species", [])))
-            methods[name] = {k: v for k, v in m.items() if k != "species"}
-            methods[name]["species"] = members
+        releases = read_releases(cfg, organisms)
         root = Path(layout.local_root)
         for p, s in organisms.items():
             row = manifest.get(p)
@@ -182,17 +208,18 @@ class Catalog:
                 s.status = "downloaded"
             elif layout.local_source(p).local.is_dir():
                 s.status = "local source only"
-            s.used_by = [name for name, m in methods.items() if p in m["species"]]
-        files = ["species_sets.toml", "species.tsv", "compara_panel.tsv"] + sorted(
-            {m["species_tree"] for m in methods.values() if m.get("species_tree")})
+            s.used_by = [f"{rel}/{part}" for rel, r in releases.items() for part, m in r["parts"].items()
+                         if p in m["species"]]
+        files = ["species_sets.toml", "releases.toml", "species.tsv", "compara_panel.tsv"] + sorted(
+            {m["species_tree"] for r in releases.values() for m in r["parts"].values() if m.get("species_tree")})
         meta = {"catalog_version": CATALOG_VERSION, "built": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "built_by": f"cichlid-data {__version__}",
                 "config": {f: md5sum(cfg / f) for f in files if (cfg / f).is_file()}}
-        return cls(organisms, methods, panel, meta, cfg)
+        return cls(organisms, releases, panel, meta, cfg)
 
     # ---- files
     def to_dict(self):
-        return {**self.meta, "methods": self.methods, "compara_panel": self.panel,
+        return {**self.meta, "releases": self.releases, "compara_panel": self.panel,
                 "organisms": {p: s.to_dict() for p, s in self.organisms.items()}}
 
     def write(self, layout):
@@ -208,9 +235,12 @@ class Catalog:
         if not path.is_file():
             raise FileNotFoundError(f"no catalog at {path}; run `cichlid-data catalog build`")
         d = json.loads(path.read_text())
+        if "releases" not in d:
+            raise ValueError(f"{path} was written by an older version (it has methods, not releases); "
+                             "run `cichlid-data catalog build`")
         organisms = {p: Species(**v) for p, v in d.pop("organisms").items()}
-        methods, panel = d.pop("methods"), d.pop("compara_panel", [])
-        return cls(organisms, methods, panel, d, path=path)
+        releases, panel = d.pop("releases"), d.pop("compara_panel", [])
+        return cls(organisms, releases, panel, d, path=path)
 
     def md5(self, layout=None):
         """MD5 of the catalog.json file this catalog was loaded from or written to: the `catalog_md5` of a
@@ -226,12 +256,32 @@ class Catalog:
     def __getitem__(self, prefix):
         return self.organisms[prefix]
 
-    def species(self, method=None, role=None, status=None):
+    def release_name(self, release=None):
+        """`release`, checked; or, if none is given and exactly one release is not superseded, that one."""
+        if release:
+            if release not in self.releases:
+                raise KeyError(f"unknown release {release!r} (one of {', '.join(self.releases) or 'none'})")
+            return release
+        live = [r for r, v in self.releases.items() if v["status"] != "superseded"]
+        if len(live) != 1:
+            raise KeyError("give a release (one of " + ", ".join(self.releases) + ")")
+        return live[0]
+
+    def part(self, release, part):
+        rel = self.release_name(release)
+        if part not in self.releases[rel]["parts"]:
+            raise KeyError(f"{rel} has no part {part!r} (one of {', '.join(self.releases[rel]['parts'])})")
+        return self.releases[rel]["parts"][part]
+
+    def species(self, release=None, part=None, role=None, status=None):
+        """Organisms: all; or those of a release (the union of its parts); or of one part of a release."""
         out = list(self.organisms.values())
-        if method:
-            if method not in self.methods:
-                raise KeyError(f"unknown method {method!r} (one of {', '.join(self.methods)})")
-            wanted = self.methods[method]["species"]
+        if release or part:
+            rel = self.release_name(release)
+            if part:
+                wanted = self.part(rel, part)["species"]
+            else:
+                wanted = list(dict.fromkeys(p for m in self.releases[rel]["parts"].values() for p in m["species"]))
             out = [self.organisms[p] for p in wanted if p in self.organisms]
         if role:
             out = [s for s in out if s.role == role]
@@ -239,21 +289,19 @@ class Catalog:
             out = [s for s in out if s.status == status]
         return out
 
-    def species_tree(self, method):
-        """Path of the species tree file the method must use (config/<species_tree>)."""
-        if method not in self.methods:
-            raise KeyError(f"unknown method {method!r} (one of {', '.join(self.methods)})")
-        name = self.methods[method].get("species_tree")
+    def species_tree(self, release, part):
+        """Path of the species tree file the part must use (config/<species_tree>)."""
+        name = self.part(release, part).get("species_tree")
         if not name:
-            raise KeyError(f"{method} has no species_tree in species_sets.toml")
+            raise KeyError(f"{self.release_name(release)}/{part} has no species_tree in releases.toml")
         return (self.cfg or config_dir()) / name
 
-    def missing(self, method):
-        """Organisms a method needs whose proteome is not ready."""
-        return [s for s in self.species(method=method) if s.status != "proteome ready"]
+    def missing(self, release, part=None):
+        """Organisms a release (or one of its parts) needs whose proteome is not ready."""
+        return [s for s in self.species(release=release, part=part) if s.status != "proteome ready"]
 
-    def validate(self):
-        """-> (errors, warnings)"""
+    def validate(self, release=None):
+        """-> (errors, warnings). The organisms always; the releases (all, or just `release`)."""
         errors, warnings = [], []
         for p, s in self.organisms.items():
             if not PREFIX_RE.match(p):
@@ -269,7 +317,28 @@ class Catalog:
             if p.lower() in lower:
                 errors.append(f"{p} and {lower[p.lower()]}: prefixes differ only in case")
             lower[p.lower()] = p
-        for name, m in self.methods.items():
+        names = [release] if release else list(self.releases)
+        for rel in names:
+            if rel not in self.releases:
+                errors.append(f"unknown release {rel!r} (one of {', '.join(self.releases) or 'none'})")
+                continue
+            errors += self._validate_release(rel)
+        return errors, warnings
+
+    def _validate_release(self, rel):
+        r, errors = self.releases[rel], []
+        if not RELEASE_RE.match(rel):
+            errors.append(f"{rel}: a release must be 'v' and a number (v1, v2, ...)")
+        if r["status"] not in STATUSES:
+            errors.append(f"{rel}: status {r['status']!r} must be one of {', '.join(STATUSES)}")
+        if not r["parts"]:
+            errors.append(f"{rel}: no parts")
+        for part, m in r["parts"].items():
+            name = f"{rel}/{part}"
+            if part not in RESULT_PARTS:
+                errors.append(f"{name}: unknown part (one of {', '.join(RESULT_PARTS)})")
+            if part in TREE_PARTS and not m["species"]:
+                errors.append(f"{name}: no species")
             for p in m["species"]:
                 if p not in self.organisms:
                     errors.append(f"{name}: {p} has no organism entry")
@@ -277,7 +346,14 @@ class Catalog:
                     errors.append(f"{name}: {p} is a candidate; change its role before using it")
             if m.get("species_tree"):
                 errors += [f"{name}: species tree {m['species_tree']}: {pr}"
-                           for pr in check_species_tree(self.species_tree(name), m["species"])]
-        return errors, warnings
-
-
+                           for pr in check_species_tree(self.species_tree(rel, part), m["species"])]
+        for p in r["deliver"]:
+            if p not in self.organisms:
+                errors.append(f"{rel}: delivered species {p} has no organism entry")
+                continue
+            if self.organisms[p].role != "project":
+                errors.append(f"{rel}: delivered species {p} is not a project species")
+            for part, m in r["parts"].items():
+                if part in TREE_PARTS and p not in m["species"]:
+                    errors.append(f"{rel}: delivered species {p} is not in {rel}/{part}")
+        return errors

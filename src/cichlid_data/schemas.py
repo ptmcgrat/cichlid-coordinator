@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import newick
+from .layout import RELEASE_RE, RESULT_PARTS, RESULTS
 
 PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*$")
 GENE_ID_RE = re.compile(r"^([A-Za-z][A-Za-z0-9]*)_([A-Za-z0-9.\-]+)$")
@@ -270,8 +271,22 @@ def validate_proteome(path, prefix=None, genes_table=None):
 
 
 # =============================================================================== run record and family
-RUN_KEYS = ("method", "method_version", "parameters", "started", "finished", "coordinator_version",
+RUN_KEYS = ("release", "method", "method_version", "parameters", "started", "finished", "coordinator_version",
             "catalog_md5", "species")
+
+
+def release_of_location(path, kind):
+    """The release a results file or folder sits in, from its path: Results/<release>/<part>/run.json
+    (kind "run") or Results/<release>/<part>/families/<family> (kind "family"); None if it sits elsewhere."""
+    p = Path(path).resolve()
+    if kind == "family":
+        if p.parent.name != "families":
+            return None
+        p = p.parent.parent / "x"                                        # as if a file in the part's folder
+    chain = [p.parent, p.parent.parent, p.parent.parent.parent]          # part, release, Results
+    if chain[0].name in RESULT_PARTS and RELEASE_RE.match(chain[1].name) and chain[2].name == RESULTS:
+        return chain[1].name
+    return None
 
 
 def validate_run(path):
@@ -280,6 +295,13 @@ def validate_run(path):
     except ValueError as e:
         return [f"not valid JSON: {e}"]
     problems = [f"missing key: {k}" for k in RUN_KEYS if k not in d]
+    if "release" in d:
+        if not RELEASE_RE.match(str(d["release"])):
+            problems.append(f"release {d['release']!r} must be like v1")
+        else:
+            where = release_of_location(path, "run")
+            if where and where != d["release"]:
+                problems.append(f"release is {d['release']} but the file is in the results of {where}")
     if "species" in d and not (isinstance(d["species"], list) and all(PREFIX_RE.match(str(s)) for s in d["species"])):
         problems.append("species must be a list of prefixes")
     if "parameters" in d and not isinstance(d["parameters"], dict):
@@ -366,7 +388,8 @@ def validate_family(folder, prefixes=None, check_alignment=True):
                   its first '_' is one of them must be a well-formed gene ID; any other name (a bare
                   prefix, a longer name that only starts with the same letters) is a reference ID and
                   is left alone. OrthoFinder's internal sequence names are refused.
-    done.json     a JSON object (its inputs hash, and so on). If it has "rooted", that is true or false;
+    done.json     a JSON object (its inputs hash, and so on). If it has "release" (v1, v2, ...) it matches the
+                  release of the folder it sits in. If it has "rooted", that is true or false;
                   "rooted": true needs a "rooting" text and a tree whose root has two children.
     combined.aln  required: aligned FASTA (equal row lengths) with a row for every leaf of the tree
                   (rows without a leaf are allowed). Other files in the folder (queries.fa, ref.tree,
@@ -410,7 +433,14 @@ def validate_family(folder, prefixes=None, check_alignment=True):
             problems.append("done.json is not valid JSON")
         if d is not None and not isinstance(d, dict):
             problems.append("done.json must be a JSON object")
-        elif isinstance(d, dict) and "rooted" in d:
+        elif isinstance(d, dict) and "release" in d:
+            if not RELEASE_RE.match(str(d["release"])):
+                problems.append(f"done.json: release {d['release']!r} must be like v1")
+            else:
+                where = release_of_location(folder, "family")
+                if where and where != d["release"]:
+                    problems.append(f"done.json says release {d['release']} but the family is in the results of {where}")
+        if isinstance(d, dict) and "rooted" in d:
             if not isinstance(d["rooted"], bool):
                 problems.append(f"done.json: rooted must be true or false, not {d['rooted']!r}")
             elif d["rooted"]:

@@ -36,23 +36,23 @@ class TestStore(unittest.TestCase):
 
     def test_shards_only_upload_what_changed(self):
         a = self.e.a
-        R = a.results("Compara2026")
+        R = a.results("v1", "Compara")
         write(R.family("TF101001").local / "tree.nwk", "(a,b);")
         write(R.family("TF101002").local / "tree.nwk", "(c,d);")
         write(R.family("TF314000").local / "tree.nwk", "(e,f);")
         write(R.family("TF314000").local / "stage5/x.fa", "scratch")                  # excluded
-        write(a.local_root / "Results/Compara2026/families/family_summary.tsv", "s")
-        res = self.e.store(a).push("results/Compara2026/families")
-        self.assertEqual(set(res), {"results/Compara2026/families/TF101", "results/Compara2026/families/TF314",
-                                    "results/Compara2026/families/_top"})
+        write(a.local_root / "Results/v1/Compara/families/family_summary.tsv", "s")
+        res = self.e.store(a).push("results/v1/Compara/families")
+        self.assertEqual(set(res), {"results/v1/Compara/families/TF101", "results/v1/Compara/families/TF314",
+                                    "results/v1/Compara/families/_top"})
         touch_later(R.family("TF314000").local / "tree.nwk")
-        res = self.e.store(a).push("results/Compara2026/families")
-        self.assertEqual(res["results/Compara2026/families/TF314"], "uploaded")
-        self.assertEqual(res["results/Compara2026/families/TF101"], "up to date")
+        res = self.e.store(a).push("results/v1/Compara/families")
+        self.assertEqual(res["results/v1/Compara/families/TF314"], "uploaded")
+        self.assertEqual(res["results/v1/Compara/families/TF101"], "up to date")
         b = self.e.b
-        self.e.store(b).pull("results/Compara2026/families")
-        self.assertTrue((b.results("Compara2026").family("TF101002").local / "tree.nwk").is_file())
-        self.assertFalse((b.results("Compara2026").family("TF314000").local / "stage5/x.fa").exists())  # excluded
+        self.e.store(b).pull("results/v1/Compara/families")
+        self.assertTrue((b.results("v1", "Compara").family("TF101002").local / "tree.nwk").is_file())
+        self.assertFalse((b.results("v1", "Compara").family("TF314000").local / "stage5/x.fa").exists())  # excluded
 
     def test_immutable_files_and_locks(self):
         a, b = self.e.a, self.e.b

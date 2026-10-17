@@ -17,15 +17,17 @@
     cichlid-data summarize h5ad|rnaseq [options]     # expression summaries
       (these run the moved scripts with their own options: add --help to see them)
     cichlid-data proteomes [--species P,..] [--push] # one protein per gene, for each species
-    cichlid-data check [--method M] [--fetch] [--deep]   # is everything each method needs here and sound?
+    cichlid-data check [--release R] [--part P] [--fetch] [--deep]   # is everything each part needs here and sound?
     cichlid-data validate PATH... [--kind K]        # check files against their schemas (a family folder, or a
                                                     # whole families/ folder, against the family contract)
-    cichlid-data catalog build|show|missing|validate|tree  # the species catalog (--method, --role); tree prints
-                                                    # the path of a method's species tree (--method)
+    cichlid-data catalog build|show|missing|validate|tree  # the species catalog (--release, --part, --role); tree
+                                                    # prints the path of a part's species tree (--part)
+    cichlid-data release show|validate|freeze [R]   # releases (v1, v2, ...): what they are; their archive
+                                                    # Releases/<R>/ (freeze needs status = frozen in releases.toml)
     cichlid-data provenance write|check|show        # source records for every input
     cichlid-data migrate [--apply] [--cleanup]       # moves the inputs to the new layout
 
-PATTERN is a unit name or a glob over unit names, e.g. "results/Compara2026/*".
+PATTERN is a unit name or a glob over unit names, e.g. "results/v1/Compara/*".
 """
 import argparse
 import sys
@@ -49,7 +51,8 @@ WHERE = {
     "annotations": lambda L, a: L.annotations(a[0] if a else ""),
     "expression": lambda L, a: L.expression(a[0] if a else ""),
     "population": lambda L, a: L.population(a[0] if a else ""),
-    "results": lambda L, a: L.results(a[0]).part(a[1]) if len(a) > 1 else L.results(a[0]).root(),
+    "results": lambda L, a: L.results(a[0], a[1]).section(a[2]) if len(a) > 2 else L.results(a[0], a[1]).root(),
+    "release": lambda L, a: L.release(a[0]).root(),
     "analysis": lambda L, a: L.analysis(a[0]),
     "archive": lambda L, a: L.archive(a[0] if a else ""),
 }
@@ -108,8 +111,9 @@ def main(argv=None, backend=None, settings=None):
     p.add_argument("--force", action="store_true", help="rebuild even if up to date")
     p.add_argument("--push", action="store_true", help="push the proteomes to the cloud afterwards")
     p.add_argument("--no-fetch", action="store_true", help="don't pull missing downloads from the cloud")
-    p = sub.add_parser("check", help="is everything each method needs here and sound?")
-    p.add_argument("--method", help="one method (default: all)")
+    p = sub.add_parser("check", help="is everything each part of a release needs here and sound?")
+    p.add_argument("--release", help="one release (default: every release that is not superseded)")
+    p.add_argument("--part", help="one part, e.g. OrthoFinder (default: all)")
     p.add_argument("--fetch", action="store_true", help="pull anything missing from the cloud first")
     p.add_argument("--deep", action="store_true", help="also compare checksums with source records")
     p = sub.add_parser("validate", help="check files against their schemas")
@@ -118,8 +122,13 @@ def main(argv=None, backend=None, settings=None):
     p.add_argument("--prefix")
     p = sub.add_parser("catalog", help="the species catalog")
     p.add_argument("action", choices=["build", "show", "missing", "validate", "tree"])
-    p.add_argument("--method")
+    p.add_argument("--release", help="a release, e.g. v1 (default: the only release that is not superseded)")
+    p.add_argument("--part", help="a part of the release, e.g. OrthoFinder")
     p.add_argument("--role")
+    p = sub.add_parser("release", help="releases and their frozen archives")
+    p.add_argument("action", choices=["show", "validate", "freeze"])
+    p.add_argument("name", nargs="?", help="a release, e.g. v1 (show and validate: default every release that is not superseded)")
+    p.add_argument("--fast", action="store_true", help="validate: compare sizes only, not checksums")
     p = sub.add_parser("provenance", help="source records for every input")
     p.add_argument("action", choices=["write", "check", "show"])
     p.add_argument("path", nargs="?", help="show: a folder relative to the data root")
@@ -199,8 +208,11 @@ def main(argv=None, backend=None, settings=None):
         from .check import check as run_check
         C = Catalog.build(L)
         store = Store(L, B, context="check") if args.fetch else None
-        findings = run_check(L, C, [args.method] if args.method else None, fetch=args.fetch, deep=args.deep,
-                             store=store, say=print)
+        try:
+            findings = run_check(L, C, release=args.release, parts=[args.part] if args.part else None,
+                                 fetch=args.fetch, deep=args.deep, store=store, say=print)
+        except KeyError as e:
+            sys.exit(str(e.args[0]))
         bad = [f for f in findings if not f.ok]
         for m in dict.fromkeys(f.method for f in findings):
             mine = [f for f in findings if f.method == m]
@@ -221,6 +233,8 @@ def main(argv=None, backend=None, settings=None):
                 prefixes = set(Catalog.load(L).organisms)
             except FileNotFoundError:
                 print("  (no catalog.json here: leaf names are not checked against species prefixes)")
+            except ValueError as e:                # a catalog.json from an older version
+                print(f"  ({e}; leaf names are not checked against species prefixes)")
         failed = 0
         for path in args.paths:
             try:
@@ -245,21 +259,30 @@ def main(argv=None, backend=None, settings=None):
                 sys.exit("catalog not written:\n  " + "\n  ".join(errors))
             path = C.write(L)
             ready = sum(s.status == "proteome ready" for s in C.organisms.values())
-            print(f"Wrote {path}: {len(C.organisms)} organisms ({ready} with proteomes ready); methods: " +
-                  ", ".join(f"{n} {len(m['species'])}" for n, m in C.methods.items()))
+            print(f"Wrote {path}: {len(C.organisms)} organisms ({ready} with proteomes ready); releases: " +
+                  ", ".join(f"{r} ({v['status']}) " + " ".join(f"{n} {len(m['species'])}" for n, m in v["parts"].items()
+                                                              if m["species"]) for r, v in C.releases.items()))
             return 0
         if args.action == "tree":
             from .catalog import species_tree_path
-            if not args.method:
-                sys.exit("catalog tree needs --method, e.g. --method OrthoFinder2026")
+            if not args.part:
+                sys.exit("catalog tree needs --part, e.g. --part OrthoFinder")
             try:
-                print(species_tree_path(args.method))
+                print(species_tree_path(args.release, args.part))
             except KeyError as e:
                 sys.exit(str(e.args[0]))
             return 0
-        C = Catalog.build(L) if args.action == "validate" else Catalog.load(L)
+        try:
+            C = Catalog.build(L) if args.action == "validate" else Catalog.load(L)
+        except (FileNotFoundError, ValueError) as e:
+            sys.exit(str(e))
+        try:
+            if args.action != "validate" and (args.release or args.part):
+                C.release_name(args.release)
+        except KeyError as e:
+            sys.exit(str(e.args[0]))
         if args.action == "validate":
-            errors, warnings = C.validate()
+            errors, warnings = C.validate(release=args.release)
             for w in warnings:
                 print(f"  warning: {w}")
             for e in errors:
@@ -268,19 +291,68 @@ def main(argv=None, backend=None, settings=None):
             if errors:
                 sys.exit(1)
         elif args.action == "missing":
-            if not args.method:
-                sys.exit("catalog missing needs --method, e.g. --method OrthoFinder2026")
-            miss = C.missing(args.method)
-            print(f"{args.method}: {len(C.species(method=args.method)) - len(miss)} of "
-                  f"{len(C.species(method=args.method))} proteomes ready; missing:")
+            try:
+                rel = C.release_name(args.release)
+                miss = C.missing(rel, args.part)
+                total = len(C.species(release=rel, part=args.part))
+            except KeyError as e:
+                sys.exit(str(e.args[0]))
+            what = f"{rel}/{args.part}" if args.part else rel
+            print(f"{what}: {total - len(miss)} of {total} proteomes ready; missing:")
             for s in miss:
                 print(f"  {s.prefix:<6} {s.species:<30} {s.status:<18} {'in species.tsv' if s.in_manifest else 'not in species.tsv'}")
             if not miss:
                 print("  none")
         else:
-            for s in C.species(method=args.method, role=args.role):
+            try:
+                shown = C.species(release=args.release, part=args.part, role=args.role)
+            except KeyError as e:
+                sys.exit(str(e.args[0]))
+            for s in shown:
                 print(f"  {s.prefix:<6} {s.species:<30} {s.role:<10} {s.status:<18} {s.accession:<18} "
                       f"{s.counts.get('proteins', '')!s:>7}  {','.join(s.used_by)}")
+        return 0
+    if args.cmd == "release":
+        from .catalog import FROZEN_STATUSES, Catalog
+        from .releases import ReleaseError, drift, freeze, load_manifest, verify_archive
+        C = Catalog.build(L)
+        if args.action == "freeze":
+            if not args.name:
+                sys.exit("release freeze needs a release, e.g. v1")
+            try:
+                freeze(L, C, args.name, say=print)
+            except (ReleaseError, KeyError) as e:
+                sys.exit(str(e.args[0]))
+            return 0
+        names = [args.name] if args.name else [r for r, v in C.releases.items() if v["status"] != "superseded"]
+        failed = 0
+        for rel in names:
+            if rel not in C.releases:
+                sys.exit(f"unknown release {rel!r} (one of {', '.join(C.releases) or 'none'})")
+            r, manifest = C.releases[rel], load_manifest(L, rel)
+            if args.action == "show":
+                print(f"{rel} ({r['status']}): {r['description']}")
+                print(f"  delivers: {', '.join(r['deliver']) or 'none'}")
+                for k, v in r["inputs"].items():
+                    print(f"  input {k}: {v}")
+                for part, m in r["parts"].items():
+                    print(f"  {part}: {len(m['species'])} species" + (f", species tree {m['species_tree']}" if m.get("species_tree") else ""))
+                print("  archive: " + (f"frozen {manifest['frozen']} by cichlid-data {manifest['coordinator_version']}, "
+                                       f"{len(manifest['files'])} files" if manifest else "not frozen on this machine"))
+                continue
+            errors, _ = C.validate(release=rel)
+            if r["status"] in FROZEN_STATUSES:
+                errors += verify_archive(L, rel, deep=not args.fast)
+            elif manifest:
+                errors.append(f"{rel} has an archive but its status is {r['status']!r}; a frozen release's status stays frozen or published")
+            print(f"{rel} ({r['status']}): " + ("valid" if not errors else f"{len(errors)} problem(s)"))
+            for e in errors[:10]:
+                print(f"    {e}")
+            for d in drift(L, rel)[:10]:
+                print(f"    note: {d}")
+            failed += bool(errors)
+        if failed:
+            sys.exit(1)
         return 0
     if args.cmd == "provenance":
         import json as _json

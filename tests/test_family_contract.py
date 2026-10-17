@@ -1,4 +1,4 @@
-"""The family contract: what any method's Results/<run>/families/<family>/ must hold."""
+"""The family contract: what any part's Results/<release>/<part>/families/<family>/ must hold."""
 import io
 import json
 import shutil
@@ -241,7 +241,7 @@ class TestFamiliesFolder(unittest.TestCase):
     def setUp(self):
         self._t = tempfile.TemporaryDirectory()
         self.d = Path(self._t.name)
-        self.fams = self.d / "Results" / "OrthoFinder2026" / "families"
+        self.fams = self.d / "Results" / "v1" / "OrthoFinder" / "families"
 
     def tearDown(self):
         self._t.cleanup()
@@ -283,7 +283,7 @@ class TestCli(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             t = Path(t)
             s = Settings(local_root=t / "data", cloud_remote="fake:")
-            fams = s.local_root / "Results" / "OrthoFinder2026" / "families"
+            fams = s.local_root / "Results" / "v1" / "OrthoFinder" / "families"
             family(fams, "N0.HOG0000001")
             family(fams, "N0.HOG0000002", "((Mzeb_XP_1,Acal_1),a);")
             f = io.StringIO()
@@ -292,7 +292,7 @@ class TestCli(unittest.TestCase):
             self.assertIn("no catalog.json here", f.getvalue())
             self.assertIn("families: ok", f.getvalue())
             write(s.local_root / "Inputs/Proteins/catalog.json", json.dumps(
-                {"methods": {}, "compara_panel": [], "organisms": {
+                {"releases": {}, "compara_panel": [], "organisms": {
                     p: {"prefix": p, "species": p, "role": "project"} for p in ("Mzeb", "Acal")}}))
             f = io.StringIO()
             with redirect_stdout(f), self.assertRaises(SystemExit):
@@ -300,6 +300,12 @@ class TestCli(unittest.TestCase):
             self.assertIn("1 problem(s)", f.getvalue())
             self.assertIn("N0.HOG0000002: tree.nwk: leaf 'Mzeb_XP_1' starts with a species prefix", f.getvalue())
             self.assertNotIn("no catalog.json", f.getvalue())
+            write(s.local_root / "Inputs/Proteins/catalog.json", json.dumps({"methods": {}, "organisms": {}}))
+            f = io.StringIO()
+            with redirect_stdout(f):                                                    # a catalog.json of v0.8: no crash
+                cli(["validate", str(fams)], settings=s)
+            self.assertIn("written by an older version", f.getvalue())
+            self.assertIn("families: ok", f.getvalue())
             f = io.StringIO()
             with redirect_stdout(f):                                                    # a single good family
                 cli(["validate", str(fams / "N0.HOG0000001"), "--kind", "family"], settings=s)

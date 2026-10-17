@@ -1,0 +1,47 @@
+# Releases of the resource. One release number is shared by every project: a release is one named state of
+# the whole resource (species, inputs, species tree, delivered species), and results live under
+# Results/<release>/<part>/. A new species, a better annotation or a new Compara release makes a new release.
+# See docs/coordinator_spec.md (section 1) and docs/HANDOFF.md.
+#
+# status: planned | building | frozen | published | superseded. The owner of the project changes it by
+#   editing this file. `cichlid-data release freeze <release>` needs frozen (or published), and archives the
+#   proteomes, catalog and species trees in Releases/<release>/; after that the release does not change.
+# deliver: the species whose orthology calls this release delivers (each must be in every tree part).
+# parts: TreeFam, Compara, OrthoFinder (species lists), Homology, Analysis. `queries = "project"` means
+#   every project species (role in species_sets.toml); a part may name a species tree (a file in config/).
+
+[releases.v1]
+status = "building"
+description = "First release: TreeFam 9, Ensembl Compara 116 and OrthoFinder, for the species of species_final.md"
+deliver = ["Mzeb", "Acal"]
+
+[releases.v1.inputs]
+treefam = "TreeFam 9"
+compara = "Ensembl Compara 116"
+variants_reference = "Astatotilapia calliptera fAstCal1.2 (GCF_900246225.1), the assembly of the population variant data; the Analysis part lifts protein coordinates over to this release's gene models"
+# the OrthoFinder version is recorded in its run record when it is run
+
+[releases.v1.parts.TreeFam]
+description = "TreeFam 9 families and trees; project species placed as queries; references fixed (109 genomes)"
+queries = "project"
+
+[releases.v1.parts.Compara]
+description = "Ensembl Compara 116 trees, pruned to compara_panel.tsv; project species placed as queries"
+queries = "project"
+reference_panel = "compara_panel.tsv"
+
+[releases.v1.parts.OrthoFinder]
+description = "Families and trees built de novo from these proteomes"
+# Rooted, fully resolved species tree for OrthoFinder's -s: exactly these species as leaves (checked by
+# `cichlid-data catalog validate` and `check`). Source: species_final.md, where the debated choices are noted.
+species_tree = "species_tree_orthofinder.nwk"
+species = ["Esur", "Acen", "Pmar", "Onil", "Nbri", "Pmic", "Sdia", "Hbur", "Mzeb", "Acal", "Bspl", "Gacu",
+           "Olat", "Nfur", "Fhet", "Pret", "Xmac", "Aoce",
+           "Trub", "Gmor", "Eluc", "Char", "Drer", "Amex", "Pkin", "Aang",
+           "Locu", "Ecal", "Hsap", "Mmus", "Ggal", "Xtro", "Lcha", "Cmil", "Bflo"]
+
+[releases.v1.parts.Homology]
+description = "Orthology calls for every method and the combined calls (human, mouse, zebrafish); retained ohnologs, cichlid-specific duplications, paralogs"
+
+[releases.v1.parts.Analysis]
+description = "Residue maps, amino-acid changes, inversion status, genotypes"

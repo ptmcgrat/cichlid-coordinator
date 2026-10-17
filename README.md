@@ -20,8 +20,8 @@ cichlid-data init                   # once per machine: writes ~/.config/cichlid
 from cichlid_data import get_layout, get_store
 L, S = get_layout(), get_store()
 S.ensure(L.proteome("Mzeb"))                       # fetch if missing locally
-R = L.results("Compara2026")
-print(R.orthology("Mzeb").local)                   # Results/Compara2026/orthology/Mzeb.orthologs.tsv
+R = L.results("v1", "Compara")
+print(R.orthology("Mzeb").local)                   # Results/v1/Compara/orthology/Mzeb.orthologs.tsv
 S.push(R.unit("orthology").name)
 ```
 
@@ -30,11 +30,11 @@ cichlid-data where proteome Mzeb
 eval "$(cichlid-data env)"
 cichlid-data status 'results/*'
 cichlid-data pull 'families/TreeFam9/*'
-cichlid-data push results/Compara2026/orthology
+cichlid-data push results/v1/Compara/orthology
 cichlid-data migrate              # dry run of moving the inputs to the new layout; --apply to do it
 ```
 
-## Status (v0.8.0)
+## Status (v0.9.0)
 
 Feature-complete against `docs/coordinator_spec.md`: configuration, layout, data units, transfers
 (fingerprints, conflict detection, immutable units, locks, transfer log), the layout migration
@@ -42,12 +42,14 @@ Feature-complete against `docs/coordinator_spec.md`: configuration, layout, data
 and local-species preparation, proteomes (Stage 2, with two fixes), all the other downloaders
 (annotations, expression, populations, the Compara preparation), and `cichlid-data check`.
 
-New in 0.8.0, the coordinator's side of the boundary between the method repositories: the family
-contract (`schemas.validate_family`, `validate_families`, `family_rooting`; any method's
-`Results/<run>/families/`), the OrthoFinder species tree as configuration
-(`config/species_tree_orthofinder.nwk`, validated against the catalog; `cichlid-data catalog tree`),
-and `Results/<run>/native/` for a method's own outputs; `Catalog.md5()` for run records. `docs/orthofinder_repo_spec.md` is the
-instruction sheet for the OrthoFinder repository.
+New in 0.9.0: releases. One release number (`v1`, `v2`, ...) is shared by every project and defined in
+`config/releases.toml` (status, delivered species, input versions, each part's species and species
+tree). Results live under `Results/<release>/<part>/` (`Layout.results(release, part)`), and
+`cichlid-data release freeze` archives a release's proteomes, catalog and species trees in
+`Releases/<release>/`, which never changes; `check` reports drift from it. `run.json` and `done.json`
+carry the release. Earlier (0.8.0): the family contract (`schemas.validate_family`), the OrthoFinder
+species tree as configuration, `native/`, and `Catalog.md5()`. Instruction sheets for the repositories
+that use the coordinator are in `docs/` (`orthofinder_repo_spec.md`, `trees_repo_spec.md`).
 
 Optional extras: `pip install -e ".[expression]"` (NumPy, SciPy) for `summarize h5ad`;
 `".[samples]"` (gspread) for `populations samples --sheet`.

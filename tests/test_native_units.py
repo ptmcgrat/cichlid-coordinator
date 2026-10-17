@@ -1,4 +1,4 @@
-"""OrthoFinder-style family IDs in the families unit, and Results/<run>/native/ for a method's own outputs."""
+"""OrthoFinder-style family IDs in the families unit, and Results/<release>/<part>/native/ for a part's own outputs."""
 import io
 import tempfile
 import unittest
@@ -10,7 +10,8 @@ from cichlid_data.cli import main as cli
 from cichlid_data.units import entry_shard, family_shard
 from helpers import Env, touch_later, write
 
-RUN = "OrthoFinder2026"
+REL, PART = "v1", "OrthoFinder"
+RUN = f"{REL}/{PART}"                      # as in unit names: results/v1/OrthoFinder/...
 
 
 class TestFamilyShards(unittest.TestCase):
@@ -55,10 +56,10 @@ class TestNativeUnit(unittest.TestCase):
     def test_layout_and_registry(self):
         with tempfile.TemporaryDirectory() as d:
             L = Layout(d, "fake:")
-            R = L.results(RUN)
+            R = L.results(REL, PART)
             self.assertEqual(R.native().rel, f"Results/{RUN}/native")
-            self.assertEqual(R.part("native").rel, R.native().rel)
-            self.assertIn("native", R.PARTS)
+            self.assertEqual(R.section("native").rel, R.native().rel)
+            self.assertIn("native", R.SECTIONS)
             write(R.native().local / "Results_Oct17" / "Orthogroups" / "Orthogroups.tsv", "x")
             reg = Registry(L)
             u = R.unit("native")
@@ -78,14 +79,14 @@ class TestNativeUnit(unittest.TestCase):
             s = Settings(local_root=Path(d), cloud_remote="fake:")
             f = io.StringIO()
             with redirect_stdout(f):
-                cli(["where", "results", RUN, "native"], settings=s)
-            self.assertEqual(f.getvalue().strip(), str(Path(d) / "Results" / RUN / "native"))
+                cli(["where", "results", REL, PART, "native"], settings=s)
+            self.assertEqual(f.getvalue().strip(), str(Path(d) / "Results" / REL / PART / "native"))
 
     def test_push_pull_and_only_changed_shards_upload(self):
         e = Env()
         try:
             a, b = e.a, e.b
-            R = a.results(RUN)
+            R = a.results(REL, PART)
             write(R.native().local / "Results_Oct17" / "Orthogroups" / "Orthogroups.tsv", "OG0000000\tMzeb_1\n")
             write(R.native().local / "Results_Oct17" / "Gene_Trees" / "OG0000000_tree.txt", "(a,b);")
             write(R.native().local / "own_species_tree" / "Results_Oct18" / "Species_Tree" / "t.txt", "(a,b);")
@@ -98,7 +99,7 @@ class TestNativeUnit(unittest.TestCase):
             self.assertEqual(res[f"results/{RUN}/native/own_species_tree"], "uploaded")
             self.assertEqual(res[f"results/{RUN}/native/Results_Oct17"], "up to date")
             e.store(b).pull(f"results/{RUN}/native")
-            rb = b.results(RUN).native().local
+            rb = b.results(REL, PART).native().local
             self.assertEqual((rb / "Results_Oct17" / "Orthogroups" / "Orthogroups.tsv").read_text(), "OG0000000\tMzeb_1\n")
             self.assertTrue((rb / "own_species_tree" / "Results_Oct18" / "Species_Tree" / "t.txt").read_text().endswith("+"))
             self.assertEqual((rb / "versions.txt").read_text(), "OrthoFinder x\n")
@@ -112,7 +113,7 @@ class TestHierarchicalFamiliesThroughTheStore(unittest.TestCase):
         e = Env()
         try:
             a, b = e.a, e.b
-            R = a.results(RUN)
+            R = a.results(REL, PART)
             ids = ("N0.HOG0000001", "N0.HOG0000002", "N0.HOG0001500", "N1.HOG0000003", "OG0000009")
             for fid in ids:
                 write(R.family(fid).local / "tree.nwk", f"({fid},x);")
@@ -123,13 +124,13 @@ class TestHierarchicalFamiliesThroughTheStore(unittest.TestCase):
                                         for s in ("N0.HOG0000", "N0.HOG0001", "N1.HOG0000", "OG0000")})
             self.assertTrue((e.cloud / "Results" / RUN / "families" / "N0.HOG0000.tar").is_file())
             # b fetches one family by the path of its folder: only the owning shard comes down
-            got = e.store(b).ensure(b.results(RUN).family("N0.HOG0001500"))
+            got = e.store(b).ensure(b.results(REL, PART).family("N0.HOG0001500"))
             self.assertTrue((Path(got) / "tree.nwk").is_file())
             self.assertFalse((Path(got) / "stage5" / "scratch.fa").exists())
-            self.assertFalse(b.results(RUN).family("N0.HOG0000001").local.exists())
+            self.assertFalse(b.results(REL, PART).family("N0.HOG0000001").local.exists())
             e.store(b).pull(f"results/{RUN}/families")
             for fid in ids:
-                self.assertEqual((b.results(RUN).family(fid).local / "tree.nwk").read_text(), f"({fid},x);")
+                self.assertEqual((b.results(REL, PART).family(fid).local / "tree.nwk").read_text(), f"({fid},x);")
         finally:
             e.close()
 

@@ -96,7 +96,7 @@ class TestOtherKinds(unittest.TestCase):
         run = self.d / "run.json"
         with self.assertRaises(schemas.SchemaError):
             schemas.write_run(run, method="OrthoFinder")
-        schemas.write_run(run, method="OrthoFinder", method_version="3.0", parameters={"-M": "msa"}, started="t0",
+        schemas.write_run(run, release="v1", method="OrthoFinder", method_version="3.0", parameters={"-M": "msa"}, started="t0",
                           finished="t1", coordinator_version="0.4.0", catalog_md5="abc", species=["Mzeb", "Hsap"])
         self.assertEqual(schemas.validate(run), [])
         run.write_text(json.dumps({"method": "x", "species": ["bad_prefix"]}))

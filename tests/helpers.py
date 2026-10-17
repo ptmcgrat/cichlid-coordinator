@@ -50,3 +50,12 @@ def coord_env(d):
             "CICHLID_DATA_CONFIG": str(d / "no-config.toml")}
 
 
+def releases_toml(parts, release="v1", status="building", deliver=("Mzeb",), inputs=None, description="test release"):
+    """A releases.toml with one release. `parts` maps a part name to the text of its keys, e.g.
+    {"TreeFam": 'queries = "project"', "OrthoFinder": 'species = ["Mzeb", "Drer"]'}."""
+    text = f'[releases.{release}]\nstatus = "{status}"\ndescription = "{description}"\n'
+    text += "deliver = [" + ", ".join(f'"{d}"' for d in deliver) + "]\n"
+    text += f"[releases.{release}.inputs]\n" + "".join(f'{k} = "{v}"\n' for k, v in (inputs or {"treefam": "TreeFam 9"}).items())
+    for part, body in parts.items():
+        text += f"[releases.{release}.parts.{part}]\n{body}\n"
+    return text

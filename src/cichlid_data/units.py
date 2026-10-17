@@ -21,7 +21,7 @@ import fnmatch
 import json
 from dataclasses import dataclass, field
 
-from .layout import ANALYSES, FAMILIES, INPUTS, PROTEINS, RESULTS, ResultsLayout
+from .layout import ANALYSES, FAMILIES, INPUTS, PROTEINS, RELEASE_RE, RELEASES, RESULT_PARTS, RESULTS, ResultsLayout
 
 DOWNLOAD_REPORTS = ("download_summary.tsv", "check_summary.tsv")
 FAMILY_EXCLUDES = ("*/stage5/*.fa", "*.raxml.rba", "*.raxml.ckp", "*.raxml.startTree", "*.raxml.mlTrees",
@@ -106,18 +106,21 @@ class Registry:
         yield U("expression/raw", f"{INPUTS}/Expression/raw", "on_demand", "files", description="raw expression data")
         yield U("populations", f"{INPUTS}/Populations", "on_demand", "files", description="population data (VCFs)")
         yield U("archive", "Archive", "on_demand", "files", description="records of earlier projects (2018 resource)")
-        for run in self._runs():
-            for part in ResultsLayout.PARTS:
-                if part == "families":
-                    yield U(f"results/{run}/families", f"{RESULTS}/{run}/families", "regenerable", "shards",
+        for release, part in self._runs():
+            name, rel = f"results/{release}/{part}", f"{RESULTS}/{release}/{part}"
+            for section in ResultsLayout.SECTIONS:
+                if section == "families":
+                    yield U(f"{name}/families", f"{rel}/families", "regenerable", "shards",
                             excludes=FAMILY_EXCLUDES, shard_by=family_shard)
-                elif part == "native":
-                    yield U(f"results/{run}/native", f"{RESULTS}/{run}/native", "regenerable", "shards",
-                            shard_by=entry_shard,
-                            description="a method's own outputs (e.g. OrthoFinder's), one tar per top-level folder")
+                elif section == "native":
+                    yield U(f"{name}/native", f"{rel}/native", "regenerable", "shards", shard_by=entry_shard,
+                            description="a part's own outputs (e.g. OrthoFinder's), one tar per top-level folder")
                 else:
-                    yield U(f"results/{run}/{part}", f"{RESULTS}/{run}/{part}", "regenerable", "tar")
-            yield U(f"results/{run}/run", f"{RESULTS}/{run}/run.json", "regenerable", "files")
+                    yield U(f"{name}/{section}", f"{rel}/{section}", "regenerable", "tar")
+            yield U(f"{name}/run", f"{rel}/run.json", "regenerable", "files")
+        for release in self._releases():
+            yield U(f"releases/{release}", f"{RELEASES}/{release}", "immutable", "files",
+                    description="the frozen archive of a release: manifest, catalog, proteomes, species trees")
         for name in self._analyses():
             yield U(f"analyses/{name}", f"{ANALYSES}/{name}", "regenerable", "tar")
 
@@ -130,7 +133,22 @@ class Registry:
         return sorted(found)
 
     def _runs(self):
-        return self._discover(RESULTS, "results/")
+        """(release, part) of every results folder, on this machine or in the cloud index."""
+        found = set()
+        d = self.layout.local_root / RESULTS
+        if d.is_dir():
+            for r in d.iterdir():
+                if r.is_dir() and RELEASE_RE.match(r.name):
+                    found |= {(r.name, p.name) for p in r.iterdir() if p.is_dir() and p.name in RESULT_PARTS}
+        for k in self.index:
+            bits = k.split("/")
+            if bits[0] == "results" and len(bits) >= 3 and RELEASE_RE.match(bits[1]) and bits[2] in RESULT_PARTS:
+                found.add((bits[1], bits[2]))
+        return sorted(found)
+
+    def _releases(self):
+        found = set(self._discover(RELEASES, "releases/"))
+        return sorted(r for r in found if RELEASE_RE.match(r))
 
     def _analyses(self):
         return self._discover(ANALYSES, "analyses/")
