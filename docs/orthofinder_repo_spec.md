@@ -10,7 +10,7 @@ This repository runs OrthoFinder on the project's 35 proteomes and turns its gen
 2. **The conversion:** OrthoFinder's orthogroups and gene trees into `Results/OrthoFinder2026/assign/` and `families/`, following the family contract.
 3. **OrthoFinder's own outputs,** kept as written in `Results/OrthoFinder2026/native/`, so they are backed up and can be pulled by anyone.
 
-It does **not** make orthology calls, name genes, find human or zebrafish orthologs, or analyze results. `cichlid-trees` reads the families this repository writes and calls them, with the same rule it uses for TreeFam and Compara, so the three methods' calls are comparable: differences between them then reflect the trees, not the calling logic.
+It does **not** make orthology calls, name genes, find human or zebrafish orthologs, or analyze results. The homology decider (project 3, `cichlid-homology`) reads the families this repository writes and calls them, with the same rule it uses for TreeFam and Compara, so the three methods' calls are comparable: differences between them then reflect the trees, not the calling logic.
 
 **Rules (the same as for every repository):**
 
@@ -19,13 +19,13 @@ It does **not** make orthology calls, name genes, find human or zebrafish orthol
 - Never download an input. The proteomes come from the catalog.
 - Never copy the species list or the species tree into this repository. Read them from the catalog.
 
-Depend on the coordinator with a pinned range, for example `cichlid-coordinator>=0.8,<1`, and use only its public API (`cichlid_data`) and its command line.
+Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.8,<0.9`, and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API; v0.9.0 is planned to (releases: `Results/<release>/<Part>/`), and this sheet will be updated for it.
 
 ## 2. Repository layout (suggested)
 
 ```
 cichlid-orthofinder/
-├── pyproject.toml           package cichlid_orthofinder; depends on cichlid-coordinator>=0.8,<1
+├── pyproject.toml           package cichlid_orthofinder; depends on cichlid-coordinator>=0.8,<0.9
 ├── src/cichlid_orthofinder/
 │   ├── run.py               prepare the input folder, run OrthoFinder, record the settings
 │   ├── convert.py           orthogroups and gene trees -> assign/ and families/
@@ -83,7 +83,7 @@ For every **orthogroup** (OrthoFinder's primary orthogroups, `OG0001234`; they h
 
 - **`tree.nwk`**: OrthoFinder's gene tree with **every leaf renamed back to our gene ID** (`<prefix>_<id>`). All leaves are ours: every sequence comes from the 35 proteomes, so there are no reference-protein IDs. A leaf that still looks like `0_123` is refused by validation. Keep OrthoFinder's branch lengths and supports.
 - **`combined.aln`**: required. The orthogroup's alignment (aligned FASTA), rows renamed to the same gene IDs, with a row for every leaf. (The name is the placement methods'; they write other files beside it, which OrthoFinder families do not have.)
-- **`done.json`**: a JSON object with the inputs hash that lets a rerun skip finished families, and the rooting. OrthoFinder roots its gene trees using the species tree, so write `"rooted": true` and `"rooting": "orthofinder species tree"`, **but only if the root of that `tree.nwk` really has two children** (validation checks it). If a tree arrives unrooted, write `"rooted": false` and leave the rooting to `cichlid-trees`, which midpoint-roots it. Never write `"rooted": true` to mean "probably".
+- **`done.json`**: a JSON object with the inputs hash that lets a rerun skip finished families, and the rooting. OrthoFinder roots its gene trees using the species tree, so write `"rooted": true` and `"rooting": "orthofinder species tree"`, **but only if the root of that `tree.nwk` really has two children** (validation checks it). If a tree arrives unrooted, write `"rooted": false` and leave the rooting to the homology decider, which midpoint-roots it. Never write `"rooted": true` to mean "probably".
 
 The families are the **orthogroups (`OG…`)**; the hierarchical orthogroups (`N0.HOG…`) are not converted and stay in `native/` with the rest of OrthoFinder's output. An orthogroup for which OrthoFinder wrote no gene tree gets no family folder; its genes still appear in `assign/` with their orthogroup, and in OrthoFinder's own tables. Report how many there are in the conversion's summary, so the gap is visible.
 
@@ -112,7 +112,7 @@ cichlid-data validate "$R"/run.json
 cichlid-data push 'results/OrthoFinder2026/*' --dry-run                # then without --dry-run
 ```
 
-Hand over to `cichlid-trees` only when all of these pass. The tests of this repository use small fake OrthoFinder output folders and run offline; they must cover the renaming (including a leaf that cannot be mapped), a gene in no orthogroup, rooted and unrooted trees, and the byte-for-byte repeatability of the conversion.
+Hand over to the homology decider only when all of these pass. The tests of this repository use small fake OrthoFinder output folders and run offline; they must cover the renaming (including a leaf that cannot be mapped), a gene in no orthogroup, rooted and unrooted trees, and the byte-for-byte repeatability of the conversion.
 
 ## 8. What this repository must not do
 

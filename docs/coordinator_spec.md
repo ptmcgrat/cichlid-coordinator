@@ -15,10 +15,22 @@ It does **not** run tree methods, make orthology calls, analyze results or serve
 
 **Rule for every other repository:** never build a data path by hand, never call rclone directly, never download an input yourself. Ask the coordinator.
 
-**The repositories that use it.** Two, and the boundary between them is the coordinator's (layout, schemas, catalog), so neither can drift from it:
+**The repositories that use it.** Five projects, each with its own repository. The boundary between them is the coordinator's (layout, schemas, catalog, transfers), so none can drift from it. Names marked * are proposed, to be confirmed.
 
-- `cichlid-trees`: TreeFam and Compara, plus the shared core: alignment and placement for the placement methods, and orthology calling and residues for **any** method's results, so every method's calls come from one rule.
-- `cichlid-orthofinder`: runs OrthoFinder on the catalog's 35 proteomes, converts its gene trees into the standard family format in `Results/OrthoFinder2026/`, and keeps OrthoFinder's own outputs alongside (`native/`). It never makes orthology calls; `cichlid-trees` calls its families. Its instruction sheet is `docs/orthofinder_repo_spec.md`.
+| # | Repository | Reads (through the coordinator) | Writes | Instruction sheet |
+|---|---|---|---|---|
+| 1 | `cichlid-trees`: TreeFam and Compara | proteomes, the catalog, TreeFam 9 and Compara 116 | per run: family folders (tree, `combined.aln`, `done.json`), assignment tables for each placed species, `run.json` | `trees_repo_spec.md` |
+| 2 | `cichlid-orthofinder` | proteomes, the catalog, the OrthoFinder species tree | per run: family folders (orthogroups), assignment tables, `native/`, `run.json` | `orthofinder_repo_spec.md` |
+| 3 | `cichlid-homology`*: the homology decider | the families of 1 and 2 (all three methods), a species-to-clade table, reference gene names | orthology calls per method and combined (human, mouse, zebrafish), retained ohnologs, cichlid-specific duplications and paralogs | to be written |
+| 4 | `cichlid-analysis`*: additional data | population variation (VCFs, inversions, genotypes), alignments, the calls of 3 | residue maps and amino-acid changes, inversion status, genotypes | to be written |
+| 5 | `cichlid-server`*: the web server | all of the above, expression, annotations | the public site | to be written |
+
+The flow is 1 and 2 (independent of each other), then 3, then 4, then 5: the server is built from the analysis outputs. Two rules follow from it:
+
+- **Only project 3 makes orthology calls**, and it makes them for all three methods with one rule, so differences between methods reflect the trees, not the calling logic. Projects 1 and 2 stop at families and assignments.
+- **The residue step belongs to project 4.** It maps protein positions onto alignment columns, and it needs nothing but `combined.aln` and the proteome, so it is one tool for every method.
+
+**Releases (decided, not yet built: v0.9.0).** One release number is shared by all projects (`v1`, `v2`, ...). A release is a named state of the whole resource: the species list, the input versions (TreeFam 9, Compara 116, the OrthoFinder version), the species tree and the delivered species. A new species, a better annotation or a new Compara release makes a new major release. Release status is one of `planned`, `building`, `frozen`, `published` and `superseded`; the owner of the project decides each change. Results will live under `Results/<release>/<Part>/` (parts `TreeFam`, `Compara`, `OrthoFinder`, `Homology`, `Analysis`), replacing `Results/<Method><Year>/`, and `release freeze` will archive the proteomes, catalog and species tree of a release so it can be reproduced. Release 1 delivers assignment tables for *M. zebra* and *A. calliptera* (the `deliver` species), while TreeFam and Compara place the 12 project species. The *A. calliptera* gene models are from the newest annotation; the variant data are on fAstCal1.2 (GCF_900246225.1), so project 4 lifts protein coordinates over, and both accessions are recorded in the release. Until v0.9.0 is released, the rest of this document describes the current layout.
 
 ## 2. Repository layout
 
@@ -48,7 +60,7 @@ cichlid-coordinator/
 │   ├── migrate.py           one-time move from the old layout
 │   └── cli.py               the cichlid-data command
 ├── tests/                   all tests run offline against LocalBackend
-└── docs/                    project manifest, species lists, this sheet, the OrthoFinder repository sheet
+└── docs/                    project manifest, species lists, this sheet, the sheets for the TreeFam/Compara and OrthoFinder repositories
 ```
 
 ## 3. Data layout (the paths Layout must produce)
@@ -304,7 +316,7 @@ Folders emptied by the moves are removed, so `Data/` ends up holding only the va
 
 ## 8. Versioning
 
-Semantic versions (`MAJOR.MINOR.PATCH`), tagged releases. Other repositories pin a range (`>=1.2,<2`).
+Semantic versions (`MAJOR.MINOR.PATCH`), tagged releases. From 1.0.0, other repositories pin the major version (`>=1.2,<2`). Before 1.0.0 a MINOR version may change the layout API, so they pin one minor (`>=0.8,<0.9`).
 
 - **MAJOR:** a layout change or a breaking schema change (a column removed or renamed).
 - **MINOR:** new layout entries, units, downloaders, or optional columns.
