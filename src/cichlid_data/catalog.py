@@ -6,6 +6,7 @@
     C.missing("OrthoFinder2026")         # organisms a method needs whose proteome is not ready
     C["Mzeb"].proteome                   # relative path of its proteome
     C.species_tree("OrthoFinder2026")    # path of the rooted species tree its run must use (-s)
+    C.md5()                              # checksum of catalog.json, for run.json's catalog_md5
 
 A method may name a species tree in species_sets.toml (species_tree = "species_tree_orthofinder.nwk",
 a file in config/). It must be rooted, fully resolved, and have exactly the method's species as
@@ -128,7 +129,8 @@ def species_tree_path(method, cfg=None):
 
 
 class Catalog:
-    def __init__(self, organisms, methods, panel, meta=None, cfg=None):
+    def __init__(self, organisms, methods, panel, meta=None, cfg=None, path=None):
+        self.path = Path(path) if path else None    # the catalog.json it was loaded from or written to
         self.organisms = organisms              # prefix -> Species
         self.methods = methods                  # name -> {"description", "species": [prefixes], ...}
         self.panel = panel
@@ -197,6 +199,7 @@ class Catalog:
         path = layout.catalog().local
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self.to_dict(), indent=2) + "\n")
+        self.path = path
         return path
 
     @classmethod
@@ -207,7 +210,17 @@ class Catalog:
         d = json.loads(path.read_text())
         organisms = {p: Species(**v) for p, v in d.pop("organisms").items()}
         methods, panel = d.pop("methods"), d.pop("compara_panel", [])
-        return cls(organisms, methods, panel, d)
+        return cls(organisms, methods, panel, d, path=path)
+
+    def md5(self, layout=None):
+        """MD5 of the catalog.json file this catalog was loaded from or written to: the `catalog_md5` of a
+        run record. A catalog that was only built has no file yet (write() it first); `layout` names the
+        file to hash instead."""
+        path = self.path or (layout.catalog().local if layout is not None else None)
+        if path is None or not Path(path).is_file():
+            raise FileNotFoundError("this catalog has no catalog.json to checksum; run `cichlid-data catalog build`, "
+                                    "then Catalog.load(layout)")
+        return md5sum(path)
 
     # ---- queries
     def __getitem__(self, prefix):

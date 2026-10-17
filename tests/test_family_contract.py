@@ -1,12 +1,13 @@
 """The family contract: what any method's Results/<run>/families/<family>/ must hold."""
 import io
 import json
+import shutil
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from cichlid_data import Settings, schemas
+from cichlid_data import Settings, newick, schemas
 from cichlid_data.cli import main as cli
 from helpers import write
 
@@ -15,12 +16,27 @@ ROOTED = "(((Mzeb_1,Acal_1),Hsap_9),ENSDARP00000012345);"
 UNROOTED = "(Mzeb_1,Acal_1,(Hsap_9,ENSDARP00000012345));"
 
 
-def family(parent, fid, tree=TREE, done=None, alignment=None):
+def aligned(tree):
+    """An alignment with one row for each distinct leaf of the tree."""
+    try:
+        names = list(dict.fromkeys(n.name for n in newick.parse(tree).leaves()))
+    except ValueError:                                  # a tree that does not parse: the rows do not matter
+        names = ["x"]
+    return "".join(f">{n}\nMKQL\n" for n in names)
+
+
+AUTO = object()
+
+
+def family(parent, fid, tree=TREE, done=None, alignment=AUTO):
+    """A finished family folder. By default its combined.aln matches the tree; alignment=None leaves it out."""
     d = Path(parent) / fid
     write(d / "tree.nwk", tree)
     write(d / "done.json", json.dumps({} if done is None else done))
+    if alignment is AUTO:
+        alignment = aligned(tree)
     if alignment is not None:
-        write(d / "alignment.fa", alignment)
+        write(d / "combined.aln", alignment)
     return d
 
 
@@ -86,8 +102,23 @@ class TestLeaves(unittest.TestCase):
         self.assertEqual(schemas.validate(f), [])                                      # could be a reference ID
         probs = schemas.validate(f, prefixes={"Mzeb", "Acal", "Hsap"})
         self.assertEqual(len(probs), 1)
-        self.assertIn("'Mzeb_XP_1' starts with a species prefix but is not a gene ID", probs[0])
+        self.assertIn("'Mzeb_XP_1' starts with a species prefix and '_' but is not a gene ID", probs[0])
         self.assertEqual(schemas.validate(family(self.d, "OG0000002"), prefixes={"Mzeb", "Acal", "Hsap"}), [])
+
+    def test_prefix_rule_is_prefix_then_underscore(self):
+        """Only the text before the first '_' counts: a reference ID that merely starts with the same
+        letters, or is the bare prefix, is not refused."""
+        prefixes = {"Hsap", "Drer"}
+        ok = ["Hsapiens123", "HsapX_1", "Hsap", "Drer", "hsap_1", "DrerP00000012345", "ENSDARP0000001",
+              "Hsap1_77", "Hsap-1", "Hsap_9", "Drer_ab.2-c"]
+        tree = "(" + ",".join(f"({x},y{i})" for i, x in enumerate(ok)) + ");"
+        self.assertEqual(schemas.validate(family(self.d, "OG0000010", tree), prefixes=prefixes), [])
+        for bad in ("Hsap_ENSP_1", "Drer_a_b", "Hsap_", "Drer__1"):
+            f = family(self.d, "OG0000011", f"({bad},z);")
+            probs = schemas.validate(f, prefixes=prefixes)
+            self.assertEqual(len(probs), 1, bad)
+            self.assertIn("starts with a species prefix and '_'", probs[0])
+            shutil.rmtree(f)
 
     def test_tree_that_does_not_parse(self):
         probs = schemas.validate(family(self.d, "OG0000003", "((a:x,b),c);"))
@@ -138,9 +169,7 @@ class TestRooting(unittest.TestCase):
             # a malformed value is never taken as "rooted": consumers then root the tree themselves
             (self.d / "OG0000300" / "done.json").write_text(json.dumps({"rooted": bad, "rooting": "x"}))
             self.assertEqual(schemas.family_rooting(self.d / "OG0000300"), (False, ""), bad)
-            (self.d / "OG0000300" / "done.json").unlink()
-            (self.d / "OG0000300" / "tree.nwk").unlink()
-            (self.d / "OG0000300").rmdir()
+            shutil.rmtree(self.d / "OG0000300")
 
     def test_done_json_must_be_an_object(self):
         f = family(self.d, "OG0000400")
@@ -155,6 +184,8 @@ class TestRooting(unittest.TestCase):
 
 
 class TestAlignment(unittest.TestCase):
+    """combined.aln: what the placement methods write beside queries.fa, ref.tree, placements.tsv ..."""
+
     def setUp(self):
         self._t = tempfile.TemporaryDirectory()
         self.d = Path(self._t.name)
@@ -164,9 +195,14 @@ class TestAlignment(unittest.TestCase):
 
     ALN = ">Mzeb_1 x\nMK-L\n>Acal_1\nMKQL\n>Hsap_9\nMRQL\n>ENSDARP00000012345\nMKQL\n"
 
-    def test_good_and_optional(self):
+    def test_good_and_required(self):
         self.assertEqual(schemas.validate(family(self.d, "OG0000001", alignment=self.ALN)), [])
-        self.assertEqual(schemas.validate(family(self.d, "OG0000002")), [])            # no alignment file: fine
+        self.assertEqual(schemas.validate(family(self.d, "OG0000002", alignment=None)), ["combined.aln is missing"])
+        self.assertEqual(schemas.ALIGNMENT_FILE, "combined.aln")
+        (self.d / "OG0000003").mkdir()                                                   # nothing at all
+        self.assertEqual(schemas.validate(self.d / "OG0000003"),
+                         ["tree.nwk is missing", "done.json is missing (the family is not finished)",
+                          "combined.aln is missing"])
 
     def test_problems(self):
         f = family(self.d, "OG0000003", alignment=">Mzeb_1\nMKL\n>Acal_1\nMKQL\n>Hsap_9\nMRQL\n")
@@ -175,9 +211,9 @@ class TestAlignment(unittest.TestCase):
         self.assertIn("rows have different lengths (3 to 4)", probs[0])
         self.assertIn("tree leaves without a row: ENSDARP00000012345", probs[1])
         f = family(self.d, "OG0000004", alignment="")
-        self.assertEqual(schemas.validate(f), ["alignment.fa is empty"])
+        self.assertEqual(schemas.validate(f), ["combined.aln is empty"])
         f = family(self.d, "OG0000005", alignment=self.ALN + ">Acal_1\nMKQL\n")
-        self.assertEqual(schemas.validate(f), ["alignment.fa: duplicate row 'Acal_1'"])
+        self.assertEqual(schemas.validate(f), ["combined.aln: duplicate row 'Acal_1'"])
         f = family(self.d, "OG0000006", alignment=">0_1\nMKQL\n>0_2\nMKQL\n")           # names not mapped back
         self.assertIn("tree leaves without a row", schemas.validate(f)[0])
 
@@ -187,6 +223,18 @@ class TestAlignment(unittest.TestCase):
         f = family(self.d, "OG0000008", alignment=">only\nMK\n")
         self.assertNotEqual(schemas.validate_family(f), [])
         self.assertEqual(schemas.validate_family(f, check_alignment=False), [])
+        f = family(self.d, "OG0000009", alignment=None)
+        self.assertEqual(schemas.validate_family(f, check_alignment=False), [])
+
+    def test_a_placement_method_folder_as_stage_4_writes_it(self):
+        """The other files of an existing family folder are the method's own and are not checked."""
+        f = family(self.d, "C116_000001", alignment=self.ALN)
+        for name in ("queries.fa", "queries.aln", "queries.tsv", "ref.aln", "ref.tree", "epa_result.jplace",
+                     "placements.tsv", "residue_map.tsv", "residues.done.json", "stage5.json"):
+            write(f / name, "not checked")
+        write(f / "stage5" / "x.fa", "scratch")
+        self.assertEqual(schemas.validate(f), [])
+        self.assertEqual(schemas.validate(f.parent, kind="families"), [])
 
 
 class TestFamiliesFolder(unittest.TestCase):

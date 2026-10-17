@@ -70,8 +70,8 @@ cichlid-coordinator/
 ├── Results/
 │   ├── <Method><Year>/                TreeFam2026, Compara2026, OrthoFinder2026: identical structure
 │   │   ├── assign/<prefix>.assign.tsv
-│   │   ├── families/<family>/         alignment.fa, tree.nwk, done.json (the family contract, section 4;
-│   │   │                              placement methods add their placements)
+│   │   ├── families/<family>/         combined.aln, tree.nwk, done.json (the family contract, section 4;
+│   │   │                              placement methods add queries.fa, ref.tree, placements.tsv, ...)
 │   │   ├── names/
 │   │   ├── native/                    the method's own outputs (OrthoFinder's result folders), as it wrote them
 │   │   ├── orthology/<prefix>.orthologs.tsv
@@ -126,7 +126,7 @@ A named, transferable piece of the tree, with a policy:
 
 `units.all()`, `units.get(name)`, `units.for_path(path)`.
 
-Every results run has the same units: `results/<run>/assign`, `families`, `names`, `native`, `orthology`, `residues`, `site` and `run`. `families` is sharded by family ID (the last three characters dropped, about 1,000 families per shard: `TF101001` in `TF101`, `OG0001234` in `OG0001`, `N0.HOG0001234` in `N0.HOG0001`). `native` holds a method's own outputs, **regenerable and tar-packed, one tar per top-level folder** (so a second run kept beside the first uploads only its own tar); it is backed up and pulled like everything else. Neither is ever packed by hand.
+Every results run has the same units: `results/<run>/assign`, `families`, `names`, `native`, `orthology`, `residues`, `site` and `run`. `families` is sharded by family ID (the last three characters dropped, about 1,000 families per shard: `TF101001` in `TF101`, `C116_012345` in `C116_012`, `OG0001234` in `OG0001`). `native` holds a method's own outputs, **regenerable and tar-packed, one tar per top-level folder** (so a second run kept beside the first uploads only its own tar); it is backed up and pulled like everything else. Neither is ever packed by hand.
 
 ### Store (`store.py`)
 
@@ -155,6 +155,8 @@ Three configuration files, each with one job:
 `Catalog.build(layout)` combines them with what is on disk into `catalog.json`; `Catalog.load(layout)` reads it.
 
 `Species` fields: `prefix`, `species`, `common`, `role`, `lineage`, `source`, `accession`, `version`, `retrieved`, `in_manifest`, `status` (`proteome ready`, `downloaded`, `local source only`, `not downloaded`), `proteome`, `genes_table`, `proteome_md5`, `counts` (proteins, genes), `used_by` (method names), `notes`.
+
+`catalog.md5()` is the MD5 of the `catalog.json` file the catalog was loaded from or written to (what a run record's `catalog_md5` holds; a catalog that was only built has no file yet and raises `FileNotFoundError`).
 
 Queries: `catalog.species(method=..., role=..., status=...)`, `catalog.missing(method)` (organisms whose proteome is not ready), `catalog[prefix]`. `validate()` returns errors (bad prefixes, unknown roles, method members without an entry or still candidates) and warnings (project species not in `species.tsv`).
 
@@ -188,9 +190,9 @@ One module per boundary file, each with a `read()`, a `write()` and a `validate(
 | Proteome FASTA `<prefix>.faa` | One record per gene; header `>gene_id description`; standard amino acids, `X`; no internal `*` |
 | Genes table `<prefix>.genes.tsv` | `gene_id, ncbi_gene_id, annotation_gene_key, symbol, description, biotype, seqid, start, end, strand, mitochondrial, n_transcripts, n_proteins, chosen_protein, chosen_transcript, protein_length, partial, low_quality, residues_replaced, internal_stops, product` |
 | Assignment `<prefix>.assign.tsv` (`best_family` and `second_family` are family IDs; for OrthoFinder the orthogroup, with the score columns empty) | `gene_id, protein_length, best_family, score, evalue, protein_coverage, family_coverage, protein_region, n_families, second_family, second_score, fusion_partner, fusion_partner_score, fusion_partner_region, fusion_partner_family_coverage, flags` |
-| Family folder `families/<family>/` | `tree.nwk` (final tree, leaf names = gene IDs or reference protein IDs), `alignment.fa`, `done.json` (inputs hash, rooting): see "The family contract" below |
+| Family folder `families/<family>/` | `tree.nwk` (final tree, leaf names = gene IDs or reference protein IDs), `combined.aln`, `done.json` (inputs hash, rooting): see "The family contract" below |
 | Orthology calls `<prefix>.orthologs.tsv` | Gene columns `gene_id, ncbi_gene_id, ncbi_symbol, ncbi_description, seqid, start, end, strand, mitochondrial, protein, protein_length, treefam_family, tree_mode, placement_status, placement_lwr`; then, for each reference (`human`, `mouse`, `zebrafish`, in that order), the block `<ref>_relationship, <ref>_ortholog_type, <ref>_symbol, <ref>_official_id, <ref>_ensembl_gene, <ref>_treefam_protein, <ref>_description, <ref>_name_status, <ref>_ref_in_subtree, <ref>_own_species_in_subtree, <ref>_median_cichlid_copies, <ref>_distance, <ref>_call_support`; then `human_uniprot, ncbi_symbol_agrees, confidence, caveats` |
-| Run record `run.json` | `method, method_version, parameters, started, finished, coordinator_version, catalog_md5, species` |
+| Run record `run.json` | `method, method_version, parameters, started, finished, coordinator_version, catalog_md5, species`. `coordinator_version` is `cichlid_data.__version__`; `catalog_md5` is `Catalog.md5()`, the MD5 of `catalog.json` |
 
 Allowed values: `relationship` in {`Ortholog`, `Paralog`, `NoHomolog`}; `ortholog_type` in {`OneToOne`, `OneToTwo`, `OneToMany`, empty}; `confidence` in {`high`, `medium`, `low`}.
 
@@ -206,9 +208,9 @@ Every method writes `Results/<run>/` in the same way, whatever built the trees, 
 
 - **`assign/<prefix>.assign.tsv`**: the existing schema. For OrthoFinder, `best_family` is the orthogroup (empty for a gene in none) and the score columns may be empty.
 - **`families/<family>/`**, one folder per family:
-  - **Family ID**: letters, digits, `.`, `_` and `-`, starting with a letter or digit (`TF101001`, `C116_012345`, `OG0001234`, `N0.HOG0001234`). The ID is the folder name.
-  - **`tree.nwk`**: the final tree. Leaf names are unique and are **our gene IDs** (`<prefix>_<id>`) or **reference-protein IDs**. OrthoFinder renames sequences internally (`0_123`); its trees must be mapped back before they are written, and a leaf that looks like an internal name is refused. A leaf that starts with a catalog prefix must be a well-formed gene ID.
-  - **`alignment.fa`**: the aligned sequences (FASTA, rows of equal length), with a row for every leaf of the tree. Optional for validation; rows without a leaf are allowed. *(File name to be confirmed against the TreeFam2026 output before v0.8.0 is tagged.)*
+  - **Family ID**: letters, digits, `.`, `_` and `-`, starting with a letter or digit (`TF101001`, `C116_012345`, `OG0001234`). The ID is the folder name. OrthoFinder's families are its primary orthogroups (`OG…`), which have gene trees; its hierarchical orthogroups (`N0.HOG…`) are kept in `native/`. The ID rule would accept them, and sharding handles them, should that change.
+  - **`tree.nwk`**: the final tree. Leaf names are unique and are **our gene IDs** (`<prefix>_<id>`) or **reference-protein IDs**. OrthoFinder renames sequences internally (`0_123`); its trees must be mapped back before they are written, and a leaf that looks like an internal name is refused. With the catalog's prefixes, a leaf whose text before its first `_` is a catalog prefix must be a well-formed gene ID; any other name (a bare prefix, or a reference ID that merely starts with the same letters) is a reference ID and is left alone.
+  - **`combined.aln`**: required. The aligned sequences (FASTA, rows of equal length), with a row for every leaf of the tree; rows without a leaf are allowed. The placement methods write it beside their own files (`queries.fa`, `ref.tree`, `epa_result.jplace`, `placements.tsv`, `residue_map.tsv`, ...), which are not part of the contract and are not checked.
   - **`done.json`**: a JSON object. It holds the inputs hash that lets a rerun skip finished work, and says whether the tree is already rooted: `"rooted": true` with a `"rooting"` text (for example `"rooting": "orthofinder species tree"`), or `"rooted": false`. `rooted` must be a true or false value; when true, `rooting` is required and the root of `tree.nwk` must have two children. **Consumers use an existing root and midpoint-root only otherwise**; a family that says nothing, or says something malformed, is treated as unrooted. `schemas.family_rooting(folder)` returns `(rooted, how)` so no consumer reimplements this rule.
 - **`run.json`**: the run record, as above.
 

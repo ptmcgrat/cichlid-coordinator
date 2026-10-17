@@ -46,7 +46,7 @@ New in 0.8.0, the coordinator's side of the boundary between the method reposito
 contract (`schemas.validate_family`, `validate_families`, `family_rooting`; any method's
 `Results/<run>/families/`), the OrthoFinder species tree as configuration
 (`config/species_tree_orthofinder.nwk`, validated against the catalog; `cichlid-data catalog tree`),
-and `Results/<run>/native/` for a method's own outputs. `docs/orthofinder_repo_spec.md` is the
+and `Results/<run>/native/` for a method's own outputs; `Catalog.md5()` for run records. `docs/orthofinder_repo_spec.md` is the
 instruction sheet for the OrthoFinder repository.
 
 Optional extras: `pip install -e ".[expression]"` (NumPy, SciPy) for `summarize h5ad`;

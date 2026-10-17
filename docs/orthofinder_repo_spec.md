@@ -75,17 +75,17 @@ Everything below is under `get_layout().results("OrthoFinder2026")` (a `ResultsL
 | `assign/<prefix>.assign.tsv` | one per species, the existing assignment schema: `gene_id` and `protein_length` for every gene; `best_family` is the gene's orthogroup, **empty for a gene in none**; the score, coverage and fusion columns **empty** (they belong to placement methods) |
 | `families/<family>/` | one folder per orthogroup, the family contract below |
 | `native/` | OrthoFinder's own result folders, as it wrote them (see below) |
-| `run.json` | the run record: `method` (`OrthoFinder`), `method_version`, `parameters`, `started`, `finished`, `coordinator_version`, `catalog_md5`, `species` (the 35 prefixes). Write it with `schemas.write_run`. `catalog_md5` is the MD5 of `catalog.json` *(definition to confirm against what `cichlid-trees` writes, so the two repositories agree)* |
+| `run.json` | the run record: `method` (`OrthoFinder`), `method_version`, `parameters`, `started`, `finished`, `coordinator_version`, `catalog_md5`, `species` (the 35 prefixes). Write it with `schemas.write_run`, taking `coordinator_version` from `cichlid_data.__version__` and `catalog_md5` from `Catalog.load(layout).md5()` (never compute either by hand) |
 
 ### The family contract (summary; the full text is in `coordinator_spec.md`)
 
-For every orthogroup, a folder named by its family ID (letters, digits, `.`, `_`, `-`: OrthoFinder's `OG0001234` or `N0.HOG0001234` are fine) holding:
+For every **orthogroup** (OrthoFinder's primary orthogroups, `OG0001234`; they have gene trees), a folder named by its family ID (letters, digits, `.`, `_`, `-`) holding:
 
 - **`tree.nwk`**: OrthoFinder's gene tree with **every leaf renamed back to our gene ID** (`<prefix>_<id>`). All leaves are ours: every sequence comes from the 35 proteomes, so there are no reference-protein IDs. A leaf that still looks like `0_123` is refused by validation. Keep OrthoFinder's branch lengths and supports.
-- **`alignment.fa`**: the orthogroup's alignment, rows renamed to the same gene IDs, with a row for every leaf.
+- **`combined.aln`**: required. The orthogroup's alignment (aligned FASTA), rows renamed to the same gene IDs, with a row for every leaf. (The name is the placement methods'; they write other files beside it, which OrthoFinder families do not have.)
 - **`done.json`**: a JSON object with the inputs hash that lets a rerun skip finished families, and the rooting. OrthoFinder roots its gene trees using the species tree, so write `"rooted": true` and `"rooting": "orthofinder species tree"`, **but only if the root of that `tree.nwk` really has two children** (validation checks it). If a tree arrives unrooted, write `"rooted": false` and leave the rooting to `cichlid-trees`, which midpoint-roots it. Never write `"rooted": true` to mean "probably".
 
-Which level of OrthoFinder's output becomes the families (the primary orthogroups `OG…`, or the hierarchical orthogroups of the root node `N0.HOG…`) is **open**; ask before choosing, and record the choice in `run.json` (`parameters`). The contract allows either. An orthogroup for which OrthoFinder wrote no gene tree gets no family folder; its genes still appear in `assign/` with their orthogroup, and in OrthoFinder's own tables. Report how many there are in the conversion's summary, so the gap is visible.
+The families are the **orthogroups (`OG…`)**; the hierarchical orthogroups (`N0.HOG…`) are not converted and stay in `native/` with the rest of OrthoFinder's output. An orthogroup for which OrthoFinder wrote no gene tree gets no family folder; its genes still appear in `assign/` with their orthogroup, and in OrthoFinder's own tables. Report how many there are in the conversion's summary, so the gap is visible.
 
 ### What is kept under `native/`
 

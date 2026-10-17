@@ -29,7 +29,7 @@ PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*$")
 GENE_ID_RE = re.compile(r"^([A-Za-z][A-Za-z0-9]*)_([A-Za-z0-9.\-]+)$")
 FAMILY_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")      # not '_' first: "_top" is a shard name
 ORTHOFINDER_INTERNAL_RE = re.compile(r"^\d+_\d+$")                # OrthoFinder's own sequence names (0_123)
-ALIGNMENT_FILE = "alignment.fa"
+ALIGNMENT_FILE = "combined.aln"          # aligned FASTA; the placement methods write it beside queries.fa, ref.tree, ...
 AMINO_ACIDS = set("ACDEFGHIKLMNPQRSTVWYX")
 MAX_PROBLEMS = 25
 
@@ -348,8 +348,8 @@ def _leaf_problems(leaves, prefixes):
         elif ORTHOFINDER_INTERNAL_RE.match(name):
             problems.append(f"tree.nwk: leaf {name!r} looks like an OrthoFinder internal sequence name; "
                             "map it back to our gene ID")
-        elif prefixes and name.split("_", 1)[0] in prefixes and not GENE_ID_RE.match(name):
-            problems.append(f"tree.nwk: leaf {name!r} starts with a species prefix but is not a gene ID "
+        elif prefixes and "_" in name and name.split("_", 1)[0] in prefixes and not GENE_ID_RE.match(name):
+            problems.append(f"tree.nwk: leaf {name!r} starts with a species prefix and '_' but is not a gene ID "
                             "(<prefix>_<id>; id without underscores)")
         seen.add(name)
         if len(problems) >= MAX_PROBLEMS:
@@ -362,11 +362,15 @@ def validate_family(folder, prefixes=None, check_alignment=True):
 
     folder name   the family ID: letters, digits, '.', '_' and '-' (not starting with '_')
     tree.nwk      a Newick tree; leaf names are unique and are our gene IDs (<prefix>_<id>) or reference
-                  protein IDs. With `prefixes` (the catalog's species prefixes) a leaf that starts with
-                  one must be a well-formed gene ID. OrthoFinder's internal sequence names are refused.
+                  protein IDs. With `prefixes` (the catalog's species prefixes) a leaf whose text before
+                  its first '_' is one of them must be a well-formed gene ID; any other name (a bare
+                  prefix, a longer name that only starts with the same letters) is a reference ID and
+                  is left alone. OrthoFinder's internal sequence names are refused.
     done.json     a JSON object (its inputs hash, and so on). If it has "rooted", that is true or false;
                   "rooted": true needs a "rooting" text and a tree whose root has two children.
-    alignment.fa  optional; if present it is aligned (equal row lengths) and has a row for every leaf.
+    combined.aln  required: aligned FASTA (equal row lengths) with a row for every leaf of the tree
+                  (rows without a leaf are allowed). Other files in the folder (queries.fa, ref.tree,
+                  epa_result.jplace, placements.tsv, residue_map.tsv, ...) belong to the method.
     """
     folder, problems = Path(folder), []
     name = folder.resolve().name
@@ -416,8 +420,11 @@ def validate_family(folder, prefixes=None, check_alignment=True):
                     problems.append(f"done.json says rooted but the root of tree.nwk has {len(root.children)} "
                                     "children (a rooted tree has two)")
     aln = folder / ALIGNMENT_FILE
-    if check_alignment and aln.is_file() and root is not None:
-        problems += _alignment_problems(aln, leaves)
+    if check_alignment:
+        if not aln.is_file():
+            problems.append(f"{ALIGNMENT_FILE} is missing")
+        elif root is not None:
+            problems += _alignment_problems(aln, leaves)
     return problems
 
 

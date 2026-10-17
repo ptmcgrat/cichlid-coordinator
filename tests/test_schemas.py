@@ -103,9 +103,12 @@ class TestOtherKinds(unittest.TestCase):
         self.assertIn("species must be a list of prefixes", schemas.validate(run))
         fam = self.d / "families" / "TF101001"
         fam.mkdir(parents=True)
-        self.assertEqual(schemas.validate(fam), ["tree.nwk is missing", "done.json is missing (the family is not finished)"])
+        self.assertEqual(schemas.validate(fam), ["tree.nwk is missing", "done.json is missing (the family is not finished)",
+                                                 "combined.aln is missing"])
         (fam / "tree.nwk").write_text("((a,b),c);")
         (fam / "done.json").write_text("{}")
+        self.assertEqual(schemas.validate(fam), ["combined.aln is missing"])
+        (fam / "combined.aln").write_text(">a\nMK\n>b\nMK\n>c\nMK\n")
         self.assertEqual(schemas.validate(fam), [])
         (fam / "tree.nwk").write_text("((a,b),c;")
         self.assertEqual(schemas.validate(fam), ["tree.nwk has unbalanced parentheses"])
