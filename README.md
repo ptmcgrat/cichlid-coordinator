@@ -2,8 +2,9 @@
 
 File locations, cloud transfers and inputs for the cichlid protein phylogeny project. Every other
 project repository (the TreeFam/Compara pipeline, OrthoFinder, analyses, the gene browser) depends on
-this package for where data lives and how it moves. Read `docs/project_manifest.md` first, then
-`docs/coordinator_spec.md` (the full specification).
+this package for where data lives and how it moves. Read `docs/HANDOFF.md` first (current state,
+procedures, decisions), then `docs/project_manifest.md` and `docs/coordinator_spec.md` (the full
+specification).
 
 ## Install
 
@@ -33,7 +34,7 @@ cichlid-data push results/Compara2026/orthology
 cichlid-data migrate              # dry run of moving the inputs to the new layout; --apply to do it
 ```
 
-## Status (v0.7.0)
+## Status (v0.7.1)
 
 Feature-complete against `docs/coordinator_spec.md`: configuration, layout, data units, transfers
 (fingerprints, conflict detection, immutable units, locks, transfer log), the layout migration
