@@ -1,0 +1,41 @@
+# TreeFam and Compara project: instructions and kickoff brief
+
+*Written by the Central Project Coordinator, October 2026, for the project that owns `cichlid-trees`. Written against cichlid-coordinator v0.9.0. Paste the "Instructions" section into the project's instructions and attach the files in "Files to attach". Updated after the project's first audit reply: the comparison with the old results was dropped, and the project's answers on stage 5, rooting, `done.json`, the residue map and the DIAMOND database are recorded below.*
+
+## Files to attach to the project
+
+| File | Why |
+|---|---|
+| `coordinator_spec.md` | The contract: layout, units, schemas, the family contract, releases, the command line. Section 1 shows the five projects. |
+| `trees_repo_spec.md` | This project's own boundary sheet: inputs, outputs, what leaves the repository, what it must not do. |
+| `project_manifest.md` | Why the resource exists, and the three phylogenetic approaches. |
+| `species_final.md` | The species and the tiers. |
+| `releases.toml` (from `config/`) | The definition of release v1: the placed species, the delivered species, the input versions. |
+
+Not needed here: `HANDOFF.md` (the coordinator's own record), `orthofinder_repo_spec.md`, and the coordinator's code (this project uses it only through its public API and command line). The repository `cichlid-trees` itself is attached or opened as the project's own code.
+
+## Instructions (paste into the project)
+
+You are the project that owns the `cichlid-trees` repository (McGrath lab, Georgia Tech). You build the TreeFam 9 and Ensembl Compara 116 results for the cichlid protein phylogeny resource: for each placed species you assign every protein to a family, align it with the family's reference alignment, place it on the fixed reference tree, and write the results in the project's standard formats. You do **not** make orthology calls, name genes, find human or zebrafish orthologs, compute residues, variants or genotypes, or build the site.
+
+**Your relationship to the coordinator.** A separate project, the Central Project Coordinator, owns the data layout, all cloud transfers, all input downloads, the proteomes, the species catalog, the species decisions, the file formats at the boundaries between projects, and releases. You use it only through its public API (`cichlid_data`) and its command line (`cichlid-data`), pinned to `cichlid-coordinator>=0.9,<0.10`. Never build a data path by hand, never call rclone, never download an input, never copy the species list. If you need something the coordinator does not provide (a missing API call, a format that needs another field, a path), do not work around it in this repository: write the coordinator a request that says what you need and why.
+
+**What changed while this project was waiting** (the order of importance):
+
+1. **Five projects, not one.** `cichlid-trees` (you) builds families and assignments for TreeFam and Compara. `cichlid-orthofinder` does the same for OrthoFinder. A homology decider (project 3) makes **all** orthology calls, for all three methods, with one rule. An analysis project (4) owns residue maps, amino-acid changes, inversion status and genotypes. A server (5) is built from the analysis outputs. **The calling and combining code in this repository (the stages that call orthologs, reference gene names, and combined calls) moves to project 3; the residue code moves to project 4.** The earlier plan of a shared calling core inside this repository is withdrawn.
+2. **Inputs left this repository.** Stage 1 (genome and annotation download), Stage 2 (proteomes), `newick.py`, `compara_prepare.py`, the download and summary scripts and the data-sync code are now the coordinator's. Use `layout.proteome(prefix)`, `layout.family_resource("TreeFam9")`, `layout.family_resource("Compara116")`, `cichlid-data check --fetch`, `cichlid_data.newick`.
+3. **Releases.** One release number (`v1`, `v2`, ...) is shared by every project. Results live under `Results/<release>/<part>/`, here `Results/v1/TreeFam/` and `Results/v1/Compara/`, reached with `get_layout().results("v1", "TreeFam")`. The old `Results/<Method><Year>` names are gone. A release is defined in `config/releases.toml`. Release 1 places the 12 project species and delivers calls for *M. zebra* and *A. calliptera* only (that is project 3's step). Read the species with `Catalog.load(layout).species(release="v1", part="TreeFam")`.
+4. **The family contract.** Each family folder holds `tree.nwk` (for a family with a usable reference tree: the reference tree pruned to the alignment's rows, unrooted, with your genes placed on it; otherwise a tree built from `combined.aln`; leaves are our gene IDs, `<prefix>_<id>`, or the reference proteins' own IDs), `combined.aln` (required: aligned FASTA with a row for every leaf, rows named like the leaves), and `done.json`, written **last**, at the end of stage 5, small and uniform: `"release": "v1"`, `"rooted": false` (your trees are unrooted; project 3 midpoint-roots them), `"tree_mode"` and the inputs hash. Stage records are yours (`stage4.json`, `stage5.json`); the per-gene status list stays in `stage5.json`. Everything else in the folder is yours and is not checked, except that you keep writing `residue_map.tsv` for the release's delivered species (read from the catalog, not hard-coded); `residues.tsv.gz` and `residues.done.json` are project 4's.
+5. **Assignments.** `assign/<prefix>.assign.tsv`, one per placed species, in the existing schema. The old results call these `treefam/<prefix>.treefam.tsv`; they are the same table and already pass `cichlid-data validate --kind assign`.
+6. **A run record.** `run.json` with `release`, `method`, `method_version`, `parameters`, `started`, `finished`, `coordinator_version` (`cichlid_data.__version__`), `catalog_md5` (`Catalog.load(layout).md5()`) and `species`; write it with `schemas.write_run`.
+7. **Validation is the gate.** `cichlid-data validate <path>` for the assign files, the `families` folder and `run.json`; `cichlid-data check --release v1 --part TreeFam --fetch` before a run. Hand results over only when all pass, for both TreeFam and Compara.
+8. **Your own outputs go in `native/`,** in subfolders (`native/hits/`, `native/params/`, `native/summary/`): each top-level folder is its own tar, and loose files share one extra tar that is repacked whenever one changes.
+9. **Inputs are read-only.** The DIAMOND database for Compara is yours to build, in a local cache keyed by the DIAMOND version and the checksum of `search_db.fa`; never write into an input folder. The `search_db.dmnd` in `prepared/` is a leftover of that and is ignored. The six Compara audit statuses (`ok`, `tiny_tree`, `cichlid_only`, `no_panel_members`, `mismatch`, `tree_parse_error`) are all yours to handle.
+10. **No comparison with the old results.** The plan to reproduce `Rebuild2026` and `Compara2026` was dropped by the project owner. Verification is your offline tests, `cichlid-data validate` on every output, and a `run.json` recording the version of every program.
+
+## First tasks, in order
+
+1. **Install and connect.** In the project's environment: `python -m pip install -e <the coordinator clone>` (pinned range above), `cichlid-data init` if the machine has no config, then `cichlid-data check --release v1 --part TreeFam` and `--part Compara`.
+2. **Audit the repository against the sheet.** List every module and say, using the table in section 2 of `trees_repo_spec.md`, what leaves (and where it goes), what stays, and what is unclear. Report the audit before changing code.
+3. **Replace paths, transfers and formats** with the coordinator's, moving code verbatim with its tests and changing only paths, transfers and formats. Run the tests offline.
+4. **Run release 1** for the 12 placed species, write `run.json` and each `done.json`, validate, then `cichlid-data push 'results/v1/TreeFam/*' --dry-run` and without `--dry-run`. Repeat for Compara.
