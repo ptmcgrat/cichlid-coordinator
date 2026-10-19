@@ -24,7 +24,8 @@ from dataclasses import dataclass, field
 from .layout import ANALYSES, FAMILIES, INPUTS, PROTEINS, RELEASE_RE, RELEASES, RESULT_PARTS, RESULTS, ResultsLayout
 
 DOWNLOAD_REPORTS = ("download_summary.tsv", "check_summary.tsv")
-FAMILY_EXCLUDES = ("*/stage5/*.fa", "*.raxml.rba", "*.raxml.ckp", "*.raxml.startTree", "*.raxml.mlTrees",
+# a family's stage5/ folder is the placement run's scratch (regenerable, and large); the stage5.json record beside it is kept
+FAMILY_EXCLUDES = ("*/stage5/*", "*.raxml.rba", "*.raxml.ckp", "*.raxml.startTree", "*.raxml.mlTrees",
                    "*.part", "residues.tsv.gz", "residues.done.json")
 
 

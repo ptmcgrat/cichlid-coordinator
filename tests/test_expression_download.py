@@ -1,7 +1,10 @@
 """Offline tests for download_expression.py (fake HPA server, fake rclone)."""
+import contextlib
+import hashlib
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -139,7 +142,58 @@ class TestExpressionDownload(unittest.TestCase):
             self.assertIn("could not download", str(cm.exception))
 
 
+
+class TestDaniocell(unittest.TestCase):
+    FILES = {"Daniocell2023_SeuratV4.rds": b"rds", "cluster_annotations.csv": b"clust,tissue\n", "daniocell_load.R": b"# R"}
+
+    class Session:
+        def get(self, url, stream=False, timeout=None):
+            return R(200, TestDaniocell.FILES[url.rsplit("/", 1)[-1]])
+
+    def test_download_then_the_packaged_export_step(self):
+        class Never:
+            def get(self, *a, **k):
+                raise AssertionError("should reuse the existing files")
+        with tempfile.TemporaryDirectory() as d:
+            env = coord_env(Path(d))
+            err = io.StringIO()
+            with mock.patch.dict(os.environ, env), contextlib.redirect_stderr(err):
+                de.main(["--source", "daniocell"], session=self.Session())
+            out = Path(d) / "local" / "Inputs" / "Expression" / "raw" / "daniocell"
+            self.assertEqual(sorted(p.name for p in out.iterdir()), sorted([*self.FILES, "DATA_NOTICE.txt"]))
+            self.assertIn("Next (in an environment with R and Seurat): Rscript " + str(de.EXPORT_SEURAT), err.getvalue())
+            self.assertIn(f"{out / 'Daniocell2023_SeuratV4.rds'} {out / 'export'}", err.getvalue())
+            err = io.StringIO()
+            with mock.patch.dict(os.environ, env), contextlib.redirect_stderr(err):
+                de.main(["--source", "daniocell"], session=Never())
+            self.assertEqual(err.getvalue().count("already here"), 3)
+
+
+class TestExportSeuratScript(unittest.TestCase):
+    """export_seurat.R was moved verbatim from the pipeline; the Python reader depends on what it writes."""
+    SCRIPT = de.EXPORT_SEURAT
+    MD5 = "c6a5117bf2ab964d7af93c533215b119"          # of the script as moved; a deliberate change to it means changing this too
+
+    def test_the_script_ships_with_the_package_and_is_unchanged(self):
+        self.assertEqual(self.SCRIPT.parent.name, "downloaders")
+        self.assertTrue(self.SCRIPT.is_file())
+        self.assertEqual(hashlib.md5(self.SCRIPT.read_bytes()).hexdigest(), self.MD5)
+        self.assertTrue(self.SCRIPT.read_text().startswith("#!/usr/bin/env Rscript\n"))
+
+    def test_it_writes_exactly_the_files_summarize_h5ad_reads(self):
+        written = set(re.findall(r'out\("([^"]+)"\)', self.SCRIPT.read_text()))
+        from cichlid_data.downloaders import h5ad
+        read = set(re.findall(r'd / "([a-z_]+\.(?:bin|txt|tsv))"', Path(h5ad.__file__).read_text()))
+        self.assertEqual(written, {"counts_x.bin", "counts_i.bin", "counts_p.bin", "dims.txt", "genes.txt",
+                                    "cells.txt", "meta.tsv", "source.txt"})
+        self.assertEqual(written, read)
+
+    def test_pyproject_ships_r_files(self):
+        pyproject = self.SCRIPT.parents[3] / "pyproject.toml"
+        if not pyproject.is_file():
+            self.skipTest("pyproject.toml not present")
+        self.assertIn('"cichlid_data.downloaders" = ["*.R"]', pyproject.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()
-
-

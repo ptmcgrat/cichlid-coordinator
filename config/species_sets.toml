@@ -18,6 +18,7 @@ species = "Etroplus suratensis"
 role = "project"
 lineage = "Cichlidae: Etroplinae"
 source = "authors"
+notes = "Release 1: fewer proteins get a family (84.8% in TreeFam, 88.0% in Compara, against 95 to 99% for the other project species) and 3 to 5 times as many possible-fusion flags in both methods; this points at its annotation (reported by the TreeFam project; not yet checked)"
 
 [[organism]]
 prefix = "Acen"

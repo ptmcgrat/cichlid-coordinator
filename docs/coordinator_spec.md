@@ -1,6 +1,6 @@
 # Coordinator repository: instruction sheet
 
-*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.9.0.*
+*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.9.2.*
 
 ## 1. Role
 
@@ -229,7 +229,9 @@ Every part writes `Results/<release>/<Part>/` in the same way, whatever built th
   - **Family ID**: letters, digits, `.`, `_` and `-`, starting with a letter or digit (`TF101001`, `C116_012345`, `OG0001234`). The ID is the folder name. OrthoFinder's families are its primary orthogroups (`OG…`), which have gene trees; its hierarchical orthogroups (`N0.HOG…`) are kept in `native/`. The ID rule would accept them, and sharding handles them, should that change.
   - **`tree.nwk`**: the final tree. Leaf names are unique and are **our gene IDs** (`<prefix>_<id>`) or **reference-protein IDs**. OrthoFinder renames sequences internally (`0_123`); its trees must be mapped back before they are written, and a leaf that looks like an internal name is refused. With the catalog's prefixes, a leaf whose text before its first `_` is a catalog prefix must be a well-formed gene ID; any other name (a bare prefix, or a reference ID that merely starts with the same letters) is a reference ID and is left alone.
   - **`combined.aln`**: required. The aligned sequences (FASTA, rows of equal length), with a row for every leaf of the tree; rows without a leaf are allowed. The placement methods write it beside their own files (`queries.fa`, `ref.tree`, `epa_result.jplace`, `placements.tsv`, `residue_map.tsv`, ...), which are not part of the contract and are not checked.
-  - **`done.json`**: a JSON object. It holds the inputs hash that lets a rerun skip finished work, and says whether the tree is already rooted: `"rooted": true` with a `"rooting"` text (for example `"rooting": "orthofinder species tree"`), or `"rooted": false`. A part that builds some trees by placing genes on a fixed reference tree and others from scratch should also say which, in `"tree_mode"` (using the values it records today; to be validated in a later version). `rooted` must be a true or false value; when true, `rooting` is required and the root of `tree.nwk` must have two children. **Consumers use an existing root and midpoint-root only otherwise**; a family that says nothing, or says something malformed, is treated as unrooted. `schemas.family_rooting(folder)` returns `(rooted, how)` so no consumer reimplements this rule.
+  - **`done.json`**: a JSON object. It holds the inputs hash that lets a rerun skip finished work, and says whether the tree is already rooted: `"rooted": true` with a `"rooting"` text (for example `"rooting": "orthofinder species tree"`), or `"rooted": false`. A part that builds some trees by placing genes on a fixed reference tree and others from scratch should also say which, in `"tree_mode"` (`place` or `denovo`, as the TreeFam and Compara parts write them, and `denovo` for OrthoFinder; to be validated in a later version). `rooted` must be a true or false value; when true, `rooting` is required and the root of `tree.nwk` must have two children. **Consumers use an existing root and midpoint-root only otherwise**; a family that says nothing, or says something malformed, is treated as unrooted. `schemas.family_rooting(folder)` returns `(rooted, how)` so no consumer reimplements this rule.
+- **A family may be missing.** A part skips a family it cannot build (the placement parts skip families with fewer than 4 sequences; OrthoFinder writes no gene tree for some orthogroups). Such a family has **no folder**, while the genes assigned to it keep their `best_family` in `assign/`. A consumer must not read that as an error; a part says how many families it skipped in its own summary (`native/summary/`).
+- **A part's scratch is not part of the contract and is not pushed.** The `families` unit leaves out everything in a family's `stage5/` folder (the placement run's working files), RAxML checkpoint and start-tree files, and the residue tables; the `stage5.json` record beside the folder is kept.
 - **`run.json`**: the run record, as above. Its `release` (and a family's `done.json` `release`, if present) must be the release of the folder it sits in.
 
 `schemas.validate_family(folder, prefixes=None)` and `schemas.validate_families(folder, prefixes=None)` check all of this; `cichlid-data validate Results/<release>/<Part>/families` is the command.
@@ -252,6 +254,7 @@ The pipeline's download and preparation scripts, moved over with their logic unc
 | `local.py` | `prepare-local` | Converts a non-NCBI annotation into the download files (`prepare_local_species.py`) |
 | `annotations.py` | `download annotations` | GO (go-basic.obo, human and ZFIN GAFs) and PANTHER classifications |
 | `expression.py` | `download expression --source hpa\|bgee\|daniocell` | Human Protein Atlas, Bgee, Daniocell raw files |
+| `export_seurat.R` | run with `Rscript` | The step after `download expression --source daniocell`: writes a Seurat object's matrix and cell metadata as plain files (`counts_x.bin`, `counts_i.bin`, `counts_p.bin`, `dims.txt`, `genes.txt`, `cells.txt`, `meta.tsv`, `source.txt`) for `summarize h5ad`. Moved verbatim from the pipeline (v0.9.1); the downloader prints the command with its path. Needs R and Seurat (see below) |
 | `h5ad.py` | `summarize h5ad` | Single-cell atlases (Zebrahub, Daniocell) to per-cell-type summaries; needs the `[expression]` extra (NumPy, SciPy) |
 | `rnaseq.py` | `summarize rnaseq` | Tissue RNA-seq (nf-core outputs, e.g. Brawand) to per-tissue summaries |
 | `blumer.py` | `download populations` | Blumer et al. 2025 VCFs and tables (about 200 GB; resumable, checksum-verified) |
@@ -259,6 +262,8 @@ The pipeline's download and preparation scripts, moved over with their logic unc
 | `compara.py` | `prepare compara` | Prunes the Compara dumps to `config/compara_panel.tsv`; the dumps, panel and output folder default to their layout paths The output `prepared/` holds `trees/`, `members.tsv`, `protein_to_species.txt`, `search_db.fa` (unaligned sequences, tool-independent), `family_audit.tsv` and `prepare.json`. It holds **no DIAMOND database**: a database depends on the DIAMOND version, so the part that searches builds its own (and never writes into an input folder). The audit statuses are `ok`, `tiny_tree`, `cichlid_only`, `no_panel_members`, `mismatch` and `tree_parse_error`; a consumer handles all of them. |
 
 `newick.py` (the pipeline's Newick parser) is a shared module of the coordinator, so the pipeline can import it from here.
+
+**System requirements outside Python.** `export_seurat.R` needs R and the Seurat package, which are not pip packages. On mzebra they are in a small conda environment, `seurat` (R 4.5.3, Seurat 5.5.1); the rest of the coordinator runs in the `cichlid-trees` environment. The export is a one-off per Daniocell release: `conda activate seurat`, run the printed `Rscript` command, then go back to the other environment for `summarize h5ad`.
 
 ### Check (`check.py`)
 

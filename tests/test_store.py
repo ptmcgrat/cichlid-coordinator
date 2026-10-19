@@ -54,6 +54,24 @@ class TestStore(unittest.TestCase):
         self.assertTrue((b.results("v1", "Compara").family("TF101002").local / "tree.nwk").is_file())
         self.assertFalse((b.results("v1", "Compara").family("TF314000").local / "stage5/x.fa").exists())  # excluded
 
+    def test_stage5_scratch_is_never_pushed_and_changing_it_repacks_nothing(self):
+        a, b = self.e.a, self.e.b
+        R = a.results("v1", "TreeFam")
+        fam = R.family("TF101001").local
+        write(fam / "tree.nwk", "(a,b);")
+        write(fam / "stage5.json", "{}")                                             # the record: kept
+        write(fam / "ref.aln", ">a\nMK\n")                                          # the part's own files: kept
+        for name in ("stage5/epa_info.log", "stage5/query.fa", "stage5/sub/placement.jplace", "stage5/x.raxml.bestTree"):
+            write(fam / name, "scratch")                                             # excluded, whatever the extension
+        self.e.store(a).push("results/v1/TreeFam/families")
+        self.e.store(b).pull("results/v1/TreeFam/families")
+        got = b.results("v1", "TreeFam").family("TF101001").local
+        self.assertTrue((got / "tree.nwk").is_file() and (got / "stage5.json").is_file() and (got / "ref.aln").is_file())
+        self.assertEqual([p.name for p in (got / "stage5").rglob("*") if p.is_file()], [])
+        touch_later(fam / "stage5/epa_info.log")                                    # a scratch file changes ...
+        res = self.e.store(a).push("results/v1/TreeFam/families")
+        self.assertEqual(res["results/v1/TreeFam/families/TF101"], "up to date")     # ... and nothing is uploaded
+
     def test_immutable_files_and_locks(self):
         a, b = self.e.a, self.e.b
         write(a.family_resource("TreeFam9").local / "hmm/TreeFam9", "hmm v1")

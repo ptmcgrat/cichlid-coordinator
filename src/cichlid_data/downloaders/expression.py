@@ -7,7 +7,9 @@ Download expression reference data for the gene browser and back it up to the la
     python download_expression.py --no-backup
     python download_expression.py --base-url https://v24.proteinatlas.org/download   # a specific release
     python download_expression.py --source bgee     # Bgee zebrafish expression calls, adult tissues
-    python download_expression.py --source daniocell  # Daniocell Seurat object + annotations (raw/daniocell)
+    python download_expression.py --source daniocell  # Daniocell Seurat object + annotations (raw/daniocell);
+                                                      # then export_seurat.R (in this folder) writes the export that
+                                                      # `cichlid-data summarize h5ad` reads
 
 Bgee (Bastian et al. 2021, Nucleic Acids Res 49:D831), into <local master>/Data/Expression/Bgee/:
     Danio_rerio_expr_simple_all_conditions.tsv.gz   expression calls per gene, anatomical entity,
@@ -41,6 +43,7 @@ from ..layout import get_layout  # noqa: E402
 HPA_BASES = ["https://www.proteinatlas.org/download/tsv", "https://www.proteinatlas.org/download"]
 DANIOCELL_BASE = "https://daniocell.nichd.nih.gov/assets/obj-download"
 DANIOCELL_FILES = ["Daniocell2023_SeuratV4.rds", "cluster_annotations.csv", "daniocell_load.R"]
+EXPORT_SEURAT = Path(__file__).with_name("export_seurat.R")      # moved from the pipeline; needs R and Seurat
 BGEE_FILE = "Danio_rerio_expr_simple_all_conditions.tsv.gz"
 BGEE_BASES = ["https://www.bgee.org/ftp/current/download/calls/expr_calls",
               "https://bgee.org/ftp/current/download/calls/expr_calls"]
@@ -183,8 +186,8 @@ def main(argv=None, session=None):
         (out / "DATA_NOTICE.txt").write_text(
             "Daniocell (https://daniocell.nichd.nih.gov), Farrell lab, NICHD. Sur A et al. (2023) Single-cell analysis\n"
             "of shared signatures and transcriptional diversity during zebrafish development. Dev Cell 58:3028.\n")
-        print(f"Daniocell files in {out}. Next: Rscript export_seurat.R {out / DANIOCELL_FILES[0]} {out / 'export'}",
-              file=sys.stderr)
+        print(f"Daniocell files in {out}. Next (in an environment with R and Seurat): "
+              f"Rscript {EXPORT_SEURAT} {out / DANIOCELL_FILES[0]} {out / 'export'}", file=sys.stderr)
         return
     if args.source == "bgee":
         out = args.outdir or L.expression("Bgee").local

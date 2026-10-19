@@ -41,10 +41,13 @@ Moving code out follows the coordinator's rule: it moves verbatim with its tests
 | `newick.py` | the coordinator (done) | `cichlid_data.newick` |
 | `compara_prepare.py` | the coordinator (done) | `cichlid-data prepare compara` |
 | The download and summary scripts (annotations, expression, populations, h5ad and RNA-seq summaries) | the coordinator (done) | `cichlid-data download ...` and `summarize ...` |
+| `export_seurat.R` | the coordinator (v0.9.1): it is the export step after `download expression --source daniocell`, and `summarize h5ad` reads its output | the packaged script `cichlid_data/downloaders/export_seurat.R` |
 | Its own data-sync code | the coordinator | the store (`get_store()`) and `cichlid-data pull | push | ensure` |
 | Ortholog calling, reference gene names (stage 6a) and combined calls (stage 7) | project 3 | per `cichlid-homology` |
 | Residue tables (`residues.tsv.gz`, `residues.done.json`; stage 8) | project 4 | per `cichlid-analysis`; `residue_map.tsv` stays here (section 4) |
-| The browser site | project 5 | per `cichlid-server` |
+| The browser site (`web/`) | project 5 | per `cichlid-server` |
+| Combined calls (stage 7) | project 3 | as above |
+| `analyses` (variants; tissue, enrichment, gene sets), stage 9 | set aside, untouched | variant analyses are project 4's; the owner of the others is not decided; stage 9 is to be described by this project |
 
 Stages are named as the coordinator's documents name them. **Stage 5 stays here:** it makes `tree.nwk`. In *place* mode it prunes the TreeFam reference tree to the alignment's rows, unroots it and resolves polytomies, evaluates branch lengths (raxml-ng), places the queries (EPA-ng) and grafts them (gappa). In *de novo* mode, for a family with no usable reference tree (286 of 8,930 TreeFam families in the previous run), it builds the tree from `combined.aln` (raxml-ng). *(As reported by this project.)* TreeFam's `family_audit.tsv` (stage 3a) also stays here: its statuses depend only on TreeFam 9's files. Compara's is made by the coordinator.
 
@@ -75,7 +78,7 @@ Everything is under `get_layout().results("v1", "TreeFam")` and `results("v1", "
 |---|---|
 | `assign/<prefix>.assign.tsv` | one per placed species, the existing assignment schema (`best_family` is the TreeFam or Compara family; the score, coverage and fusion columns are yours) |
 | `families/<family>/` | one folder per family, the family contract below |
-| `native/<subfolder>/` | this part's own outputs: stage 3's hits, parameters and summaries, and tables such as `ensembl_xref.tsv`, each kind in its own subfolder (`native/hits/`, `native/params/`, `native/summary/`). Each top-level folder is stored as its own tar; loose files go together into one extra tar that is repacked whenever any of them changes, so use subfolders |
+| `native/<subfolder>/` | this part's own outputs: stage 3's hits, parameters and summaries, TreeFam's `family_audit.tsv` (stage 3a, `native/audit/`) and tables such as `ensembl_xref.tsv` (`native/xref/`), each kind in its own subfolder (`native/hits/`, `native/params/`, `native/summary/`). Each top-level folder is stored as its own tar; loose files go together into one extra tar that is repacked whenever any of them changes, so use subfolders |
 | `run.json` | the run record: `release` (`v1`; it must match the folder it is in), `method` (`TreeFam` or `Compara`), `method_version`, `parameters` (search thresholds, aligner, placement program and their versions), `started`, `finished`, `coordinator_version` (`cichlid_data.__version__`), `catalog_md5` (`Catalog.load(layout).md5()`), `species` (the placed prefixes). Write it with `schemas.write_run`. |
 
 ### The family contract (summary; the full text is in `coordinator_spec.md`)
@@ -84,8 +87,10 @@ For every family, a folder named by the family ID (`TF101001`, `C116_012345`) ho
 
 - **`tree.nwk`:** the final tree. For a family with a usable reference tree, it is the reference tree, pruned to the alignment's rows and unrooted, with your genes placed on it; for a family without one, it is a tree built from `combined.aln`. Leaf names are unique: our gene IDs (`<prefix>_<id>`) for the placed proteins, and the reference proteins' own IDs for the rest.
 - **`combined.aln`:** the aligned FASTA, with a row for every leaf of the tree, rows named like the leaves.
-- **`done.json`:** a small JSON object, written **last**, at the end of stage 5: a folder without it is unfinished. It holds `"release": "v1"`, `"rooted": false` (stage 5 unroots the reference tree on purpose, and de novo trees are unrooted, so project 3 midpoint-roots them; Compara's species-tree-aware root is lost, and keeping it would be a separate decision for project 3), `"tree_mode"` (`place` or `de novo`, in the strings your stage records use today; send them to the coordinator, who will validate them), and the inputs hash that lets a rerun skip finished work. Name the stage records `stage4.json` and `stage5.json` (they are yours); the per-gene status list stays in `stage5.json` until project 3's sheet defines what it reads from a family.
+- **`done.json`:** a small JSON object, written **last**, at the end of stage 5: a folder without it is unfinished. It holds `"release": "v1"`, `"rooted": false` (stage 5 unroots the reference tree on purpose, and de novo trees are unrooted, so project 3 midpoint-roots them; Compara's species-tree-aware root is lost, and keeping it would be a separate decision for project 3), `"tree_mode"` (`place` or `denovo`, as you reported; the coordinator will validate them), and the inputs hash that lets a rerun skip finished work. Name the stage records `stage4.json` and `stage5.json` (they are yours); the per-gene status list stays in `stage5.json` until project 3's sheet defines what it reads from a family.
 - **`residue_map.tsv`:** keep writing it, from MAFFT `--mapout`, for the **delivered species of the release** (read them from the catalog: `Catalog.load(layout).releases["v1"]["deliver"]`), not from a hard-coded list. `combined.aln` alone cannot give an exact map here, because `--keeplength` drops query-only insertion columns. Send the coordinator the file's header and what each column means: it will become a schema, and project 4 will read it.
+- **Skipped families have no folder.** A family with fewer than 4 sequences is skipped (in release 1: 10 in TreeFam and 116 in Compara); its genes keep their `best_family` in `assign/`. Record the skipped families, with their sequence counts, in `native/summary/` (say so in your documentation if you already do), so that project 3 can tell a skipped family from a missing one.
+- **`stage5/` is scratch.** Keep each family's `stage5/` working folder locally as you wish: the `families` unit does not push anything inside it (the `stage5.json` record beside it is pushed).
 - The other files you keep beside these (`queries.fa`, `ref.tree`, `epa_result.jplace`, `placements.tsv`, ...) are yours and are not checked. `residues.tsv.gz` and `residues.done.json` (stage 8) belong to project 4: leave them as they are and do not extend them.
 
 ## 5. Validation and handing over
