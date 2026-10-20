@@ -22,6 +22,7 @@ data: each organism's source record (Stage 1's download.json, or source.json), a
 and proteome exist.
 """
 import csv
+import hashlib
 import json
 import re
 import time
@@ -124,6 +125,15 @@ def check_species_tree(path, species):
     if len(unresolved) > 3:
         problems.append(f"... and {len(unresolved) - 3} more unresolved nodes")
     return problems
+
+
+def proteomes_digest(checksums):
+    """MD5 of a set of proteomes: one line `<prefix> <proteome md5>` per species, sorted by prefix.
+
+    `checksums` maps prefix -> the proteome's MD5. A run records this for its species (run.json `proteomes_md5`), and a
+    frozen release can recompute it from its manifest, so a run can be tied to exactly the proteomes it used."""
+    lines = [f"{p} {checksums[p]}" for p in sorted(checksums)]
+    return hashlib.md5(("\n".join(lines) + "\n").encode()).hexdigest()
 
 
 def species_tree_path(release, part, cfg=None):
@@ -242,9 +252,20 @@ class Catalog:
         releases, panel = d.pop("releases"), d.pop("compara_panel", [])
         return cls(organisms, releases, panel, d, path=path)
 
+    def proteomes_md5(self, prefixes=None):
+        """MD5 of the proteomes of `prefixes` (default: every organism with a proteome): the `proteomes_md5` of a run
+        record, which stays the same however often the catalog is rebuilt (see proteomes_digest). KeyError if a
+        prefix has no proteome checksum."""
+        names = list(prefixes) if prefixes is not None else [p for p, s in self.organisms.items() if s.proteome_md5]
+        missing = [p for p in names if p not in self.organisms or not self.organisms[p].proteome_md5]
+        if missing:
+            raise KeyError(f"no proteome checksum in the catalog for {', '.join(missing)}")
+        return proteomes_digest({p: self.organisms[p].proteome_md5 for p in names})
+
     def md5(self, layout=None):
-        """MD5 of the catalog.json file this catalog was loaded from or written to: the `catalog_md5` of a
-        run record. A catalog that was only built has no file yet (write() it first); `layout` names the
+        """MD5 of the catalog.json file this catalog was loaded from or written to. It identifies that one file: the
+        file records when it was built, so the value changes on every rebuild even if nothing else did. To tie a run to
+        the proteomes it used, use proteomes_md5. A catalog that was only built has no file yet (write() it first); `layout` names the
         file to hash instead."""
         path = self.path or (layout.catalog().local if layout is not None else None)
         if path is None or not Path(path).is_file():

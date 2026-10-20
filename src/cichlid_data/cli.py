@@ -118,7 +118,7 @@ def main(argv=None, backend=None, settings=None):
     p.add_argument("--deep", action="store_true", help="also compare checksums with source records")
     p = sub.add_parser("validate", help="check files against their schemas")
     p.add_argument("paths", nargs="+")
-    p.add_argument("--kind", choices=["genes", "assign", "orthologs", "proteome", "run", "family", "families"])
+    p.add_argument("--kind", choices=["genes", "assign", "orthologs", "proteome", "run", "residue_map", "family", "families"])
     p.add_argument("--prefix")
     p = sub.add_parser("catalog", help="the species catalog")
     p.add_argument("action", choices=["build", "show", "missing", "validate", "tree"])
@@ -314,7 +314,7 @@ def main(argv=None, backend=None, settings=None):
         return 0
     if args.cmd == "release":
         from .catalog import FROZEN_STATUSES, Catalog
-        from .releases import ReleaseError, drift, freeze, load_manifest, verify_archive
+        from .releases import ReleaseError, drift, freeze, load_manifest, run_records, verify_archive
         C = Catalog.build(L)
         if args.action == "freeze":
             if not args.name:
@@ -341,14 +341,17 @@ def main(argv=None, backend=None, settings=None):
                                        f"{len(manifest['files'])} files" if manifest else "not frozen on this machine"))
                 continue
             errors, _ = C.validate(release=rel)
+            run_notes = []
             if r["status"] in FROZEN_STATUSES:
                 errors += verify_archive(L, rel, deep=not args.fast)
+                run_problems, run_notes = run_records(L, rel)
+                errors += run_problems
             elif manifest:
                 errors.append(f"{rel} has an archive but its status is {r['status']!r}; a frozen release's status stays frozen or published")
             print(f"{rel} ({r['status']}): " + ("valid" if not errors else f"{len(errors)} problem(s)"))
             for e in errors[:10]:
                 print(f"    {e}")
-            for d in drift(L, rel)[:10]:
+            for d in (drift(L, rel) + run_notes)[:10]:
                 print(f"    note: {d}")
             failed += bool(errors)
         if failed:

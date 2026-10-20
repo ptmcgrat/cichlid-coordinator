@@ -230,8 +230,10 @@ class TestAlignment(unittest.TestCase):
         """The other files of an existing family folder are the method's own and are not checked."""
         f = family(self.d, "C116_000001", alignment=self.ALN)
         for name in ("queries.fa", "queries.aln", "queries.tsv", "ref.aln", "ref.tree", "epa_result.jplace",
-                     "placements.tsv", "residue_map.tsv", "residues.done.json", "stage5.json"):
+                     "placements.tsv", "residues.done.json", "stage5.json", "stage4.json"):
             write(f / name, "not checked")
+        write(f / "residue_map.tsv", "gene_id\tprotein_length\taln_length\tresidues_not_in_alignment\tcolumns\n"
+                                    "Mzeb_1\t3\t4\t0\t1,2,4\n")                  # this one is checked (v0.10)
         write(f / "stage5" / "x.fa", "scratch")
         self.assertEqual(schemas.validate(f), [])
         self.assertEqual(schemas.validate(f.parent, kind="families"), [])

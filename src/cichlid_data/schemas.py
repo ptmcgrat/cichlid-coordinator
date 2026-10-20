@@ -6,8 +6,8 @@
     problems = schemas.validate(path)               # the kind is inferred from the file name
 
 Kinds: genes (<prefix>.genes.tsv), assign (<prefix>.assign.tsv), orthologs (<prefix>.orthologs.tsv),
-proteome (<prefix>.faa), run (run.json), family (a families/<family>/ folder), families (a whole
-families/ folder: every family in it).
+proteome (<prefix>.faa), run (run.json), residue_map (residue_map.tsv), family (a families/<family>/ folder),
+families (a whole families/ folder: every family in it).
 
 Family IDs: letters, digits, '.', '_' and '-', starting with a letter or digit (TF101001, C116_012345,
 OG0001234, N0.HOG0001234). The family contract (any method's Results/<run>/families/<family>/) is in
@@ -271,6 +271,12 @@ def validate_proteome(path, prefix=None, genes_table=None):
 
 
 # =============================================================================== run record and family
+MD5_RE = re.compile(r"^[0-9a-f]{32}$")
+TREE_MODES = ("place", "denovo")             # how a family's tree was made: placed on a reference tree, or built from scratch
+RESIDUE_MAP_FILE = "residue_map.tsv"
+RESIDUE_MAP_HEADER = ["gene_id", "protein_length", "aln_length", "residues_not_in_alignment", "columns"]
+# run.json: besides RUN_KEYS, an optional "proteomes_md5" (Catalog.proteomes_md5 of the run's species): the checksum of exactly
+# the proteomes the run used, which `release validate` compares with a frozen release
 RUN_KEYS = ("release", "method", "method_version", "parameters", "started", "finished", "coordinator_version",
             "catalog_md5", "species")
 
@@ -302,6 +308,8 @@ def validate_run(path):
             where = release_of_location(path, "run")
             if where and where != d["release"]:
                 problems.append(f"release is {d['release']} but the file is in the results of {where}")
+    if "proteomes_md5" in d and not MD5_RE.match(str(d["proteomes_md5"])):
+        problems.append("proteomes_md5 must be a 32-character MD5 (Catalog.proteomes_md5)")
     if "species" in d and not (isinstance(d["species"], list) and all(PREFIX_RE.match(str(s)) for s in d["species"])):
         problems.append("species must be a list of prefixes")
     if "parameters" in d and not isinstance(d["parameters"], dict):
@@ -440,6 +448,8 @@ def validate_family(folder, prefixes=None, check_alignment=True):
                 where = release_of_location(folder, "family")
                 if where and where != d["release"]:
                     problems.append(f"done.json says release {d['release']} but the family is in the results of {where}")
+        if isinstance(d, dict) and "tree_mode" in d and d["tree_mode"] not in TREE_MODES:
+            problems.append(f"done.json: tree_mode {d['tree_mode']!r} must be one of {', '.join(TREE_MODES)}")
         if isinstance(d, dict) and "rooted" in d:
             if not isinstance(d["rooted"], bool):
                 problems.append(f"done.json: rooted must be true or false, not {d['rooted']!r}")
@@ -455,6 +465,90 @@ def validate_family(folder, prefixes=None, check_alignment=True):
             problems.append(f"{ALIGNMENT_FILE} is missing")
         elif root is not None:
             problems += _alignment_problems(aln, leaves)
+    rmap = folder / RESIDUE_MAP_FILE
+    if rmap.is_file():                                   # optional; checked when present
+        problems += [f"{RESIDUE_MAP_FILE}: {pr}" for pr in
+                     validate_residue_map(rmap, _alignment_length(aln) if check_alignment else None)]
+    return problems
+
+
+def _alignment_length(path):
+    """The common row length of an aligned FASTA; None if it is missing, empty or ragged."""
+    try:
+        lengths = {len(seq) for _, seq in read_fasta(path)}
+    except OSError:
+        return None
+    return lengths.pop() if len(lengths) == 1 else None
+
+
+def _residue_row_problem(f, aln_length):
+    """The first problem with one residue_map.tsv row (already split into 5 fields), or None."""
+    gid, plen, alen, notin, cols = f
+    if not GENE_ID_RE.match(gid):
+        return f"{gid!r} is not a gene ID (<prefix>_<id>; id without underscores)"
+    try:
+        plen, alen, notin = int(plen), int(alen), int(notin)
+    except ValueError:
+        return f"{gid}: protein_length, aln_length and residues_not_in_alignment must be whole numbers"
+    if plen < 1 or alen < 1 or notin < 0:
+        return f"{gid}: protein_length and aln_length must be at least 1, residues_not_in_alignment 0 or more"
+    entries = cols.split(",") if cols else []
+    if len(entries) != plen:
+        return f"{gid}: columns has {len(entries)} entries for a protein of length {plen} (one per residue)"
+    last, dashes = 0, 0
+    for e in entries:
+        if e == "-":
+            dashes += 1
+        elif not e.isdigit() or not 1 <= int(e) <= alen:
+            return f"{gid}: column {e!r} must be '-' or a whole number from 1 to aln_length ({alen})"
+        elif int(e) <= last:
+            return f"{gid}: columns must increase along the sequence ({e} after {last})"
+        else:
+            last = int(e)
+    if dashes != notin:
+        return f"{gid}: residues_not_in_alignment is {notin} but columns has {dashes} '-' entries"
+    return None
+
+
+def validate_residue_map(path, aln_length=None):
+    """A residue_map.tsv: for each protein, the column of the family's combined.aln that each of its residues is in.
+
+    Tab-separated, with the header gene_id, protein_length, aln_length, residues_not_in_alignment, columns; one row
+    per protein, sorted by gene_id, no duplicates. `columns` is a comma-separated list with one entry per residue in
+    sequence order: the 1-based column, or '-' for a residue left out of the alignment (an insertion MAFFT
+    --keeplength dropped). Columns increase along the sequence; aln_length is the same on every row (and is
+    `aln_length`, the length of combined.aln, if given). Rows can be very long, so no csv module is used."""
+    try:
+        fh = open(path, encoding="utf-8")
+    except OSError as e:
+        return [str(e)]
+    problems, previous, lengths = [], None, set()
+    with fh:
+        header = fh.readline().rstrip("\r\n").split("\t")
+        if header != RESIDUE_MAP_HEADER:
+            return [f"header must be {', '.join(RESIDUE_MAP_HEADER)}"]
+        for n, line in enumerate(fh, start=2):
+            line = line.rstrip("\r\n")
+            if not line:
+                continue
+            f = line.split("\t")
+            if len(f) != len(RESIDUE_MAP_HEADER):
+                problems.append(f"line {n}: expected {len(RESIDUE_MAP_HEADER)} columns, found {len(f)}")
+            else:
+                pr = _residue_row_problem(f, aln_length)
+                if pr:
+                    problems.append(f"line {n}: {pr}")
+                else:
+                    lengths.add(int(f[2]))
+                    if previous is not None and f[0] <= previous:
+                        problems.append(f"line {n}: {f[0]} is not after {previous} (rows are sorted by gene_id, with no duplicates)")
+                    previous = f[0]
+            if len(problems) >= MAX_PROBLEMS:
+                return problems + ["(stopping after too many problems)"]
+    if len(lengths) > 1:
+        problems.append(f"aln_length differs between rows ({min(lengths)} to {max(lengths)})")
+    elif lengths and aln_length is not None and lengths != {aln_length}:
+        problems.append(f"aln_length is {next(iter(lengths))} but combined.aln is {aln_length} columns long")
     return problems
 
 
@@ -483,6 +577,8 @@ def kind_of(path):
         return "proteome"
     if name == "run.json":
         return "run"
+    if name == RESIDUE_MAP_FILE:
+        return "residue_map"
     return None
 
 
@@ -503,6 +599,8 @@ def validate(path, kind=None, prefix=None, prefixes=None):
         return validate_proteome(path, prefix, genes if genes.is_file() else None)
     if kind == "run":
         return validate_run(path)
+    if kind == "residue_map":
+        return validate_residue_map(path)
     if kind == "family":
         return validate_family(path, prefixes)
     if kind == "families":

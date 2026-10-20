@@ -1,6 +1,6 @@
 # OrthoFinder repository: instruction sheet
 
-*For the `cichlid-orthofinder` repository. October 2026. Written against cichlid-coordinator v0.9.1. Read first: `project_manifest.md` (why the project exists), `species_final.md` (the species), and `coordinator_spec.md` (the layout, the schemas and the family contract, which this sheet relies on).*
+*For the `cichlid-orthofinder` repository. October 2026. Written against cichlid-coordinator v0.10.0. Read first: `project_manifest.md` (why the project exists), `species_final.md` (the species), and `coordinator_spec.md` (the layout, the schemas and the family contract, which this sheet relies on).*
 
 ## 1. Role
 
@@ -19,13 +19,13 @@ It does **not** make orthology calls, name genes, find human or zebrafish orthol
 - Never download an input. The proteomes come from the catalog.
 - Never copy the species list or the species tree into this repository. Read them from the catalog.
 
-Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.9,<0.10`, and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API (v0.9.0 did: results are now `Results/<release>/<part>/`).
+Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.10,<0.11`, and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API (v0.9.0 did: results are now `Results/<release>/<part>/`).
 
 ## 2. Repository layout (suggested)
 
 ```
 cichlid-orthofinder/
-├── pyproject.toml           package cichlid_orthofinder; depends on cichlid-coordinator>=0.9,<0.10
+├── pyproject.toml           package cichlid_orthofinder; depends on cichlid-coordinator>=0.10,<0.11
 ├── src/cichlid_orthofinder/
 │   ├── run.py               prepare the input folder, run OrthoFinder, record the settings
 │   ├── convert.py           orthogroups and gene trees -> assign/ and families/
@@ -81,7 +81,7 @@ Everything below is under `get_layout().results("v1", "OrthoFinder")` (a `Result
 | `assign/<prefix>.assign.tsv` | one per species, the existing assignment schema: `gene_id` and `protein_length` for every gene; `best_family` is the gene's orthogroup, **empty for a gene in none**; the score, coverage and fusion columns **empty** (they belong to placement methods) |
 | `families/<family>/` | one folder per orthogroup, the family contract below |
 | `native/` | OrthoFinder's own result folders, as it wrote them (see below) |
-| `run.json` | the run record: `release` (`v1`; it must match the folder it is in), `method` (`OrthoFinder`), `method_version`, `parameters`, `started`, `finished`, `coordinator_version`, `catalog_md5`, `species` (the 35 prefixes). Write it with `schemas.write_run`, taking `coordinator_version` from `cichlid_data.__version__` and `catalog_md5` from `Catalog.load(layout).md5()` (never compute either by hand) |
+| `run.json` | the run record: `release` (`v1`; it must match the folder it is in), `method` (`OrthoFinder`), `method_version`, `parameters`, `started`, `finished`, `coordinator_version`, `catalog_md5`, `proteomes_md5`, `species` (the 35 prefixes). Write it with `schemas.write_run`, taking `coordinator_version` from `cichlid_data.__version__`, `catalog_md5` from `Catalog.load(layout).md5()` and `proteomes_md5` from `Catalog.load(layout).proteomes_md5(species)` (never compute any of them by hand). `proteomes_md5` is the one that ties the run to exactly the proteomes it used; `catalog_md5` identifies one `catalog.json` file and changes whenever the catalog is rebuilt |
 
 ### The family contract (summary; the full text is in `coordinator_spec.md`)
 

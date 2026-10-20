@@ -19,7 +19,8 @@ import time
 from pathlib import Path
 
 from . import __version__
-from .catalog import FROZEN_STATUSES
+from .catalog import FROZEN_STATUSES, proteomes_digest
+from .layout import RESULTS
 from .config import config_dir
 from .provenance import md5sum
 
@@ -97,6 +98,7 @@ def freeze(layout, catalog, release, say=print):
             "frozen_by": f"cichlid-data {__version__}", "coordinator_version": __version__,
             "description": r["description"], "deliver": r["deliver"], "inputs": r["inputs"], "parts": r["parts"],
             "catalog_md5": files["catalog.json"]["md5"],
+            "proteomes_md5": proteomes_digest({s.prefix: s.proteome_md5 for s in species}),
             "species": {s.prefix: {"species": s.species, "role": s.role, "accession": s.accession,
                                    "version": s.version, "proteome_md5": s.proteome_md5, "counts": s.counts}
                         for s in species},
@@ -132,6 +134,34 @@ def verify_archive(layout, release, deep=True):
     on_disk = {str(f.relative_to(root)) for f in root.rglob("*") if f.is_file()} - {MANIFEST}
     problems += [f"{x}: not in the manifest (a frozen release does not gain files)" for x in sorted(on_disk - set(manifest["files"]))]
     return problems
+
+
+def run_records(layout, release):
+    """-> (problems, notes) from comparing each run.json under Results/<release>/ with the frozen archive.
+
+    A run that records `proteomes_md5` must have used exactly the proteomes the release froze (for its species); a run
+    without it is only noted, since its proteomes cannot be checked."""
+    manifest = load_manifest(layout, release)
+    root = Path(layout.local_root) / RESULTS / release
+    problems, notes = [], []
+    if manifest is None or not root.is_dir():
+        return problems, notes
+    for run in sorted(root.glob("*/run.json")):
+        part = run.parent.name
+        try:
+            d = json.loads(run.read_text())
+        except ValueError:
+            problems.append(f"{part}/run.json is not valid JSON")
+            continue
+        species = d.get("species") if isinstance(d.get("species"), list) else []
+        outside = [p for p in species if p not in manifest["species"]]
+        if outside:
+            problems.append(f"{part}: the run used species the frozen {release} does not have: {', '.join(outside)}")
+        elif "proteomes_md5" not in d:
+            notes.append(f"{part}: run.json has no proteomes_md5, so its proteomes cannot be checked against the frozen {release}")
+        elif d["proteomes_md5"] != proteomes_digest({p: manifest["species"][p]["proteome_md5"] for p in species}):
+            problems.append(f"{part}: its proteomes differ from the ones frozen in {release}")
+    return problems, notes
 
 
 def drift(layout, release, cfg=None):

@@ -266,6 +266,50 @@ class TestArchiveIsImmutableInTheStore(unittest.TestCase):
             e.close()
 
 
+class TestRunRecordsAgainstTheArchive(Base):
+    """run.json says which proteomes the run used; a frozen release can tell whether that is what it froze."""
+
+    def write_run(self, part, species, **extra):
+        rec = dict(release="v1", method=part, method_version="x", parameters={}, started="a", finished="b",
+                   coordinator_version=__version__, catalog_md5="m", species=species)
+        rec.update(extra)
+        schemas.write_run(self.L.results("v1", part).run_record().local, **rec)
+
+    def test_manifest_records_the_proteomes_checksum(self):
+        self.frozen()
+        m = load_manifest(self.L, "v1")
+        self.assertEqual(m["proteomes_md5"], self.catalog().proteomes_md5(["Mzeb", "Acal", "Drer"]))
+
+    def test_matching_mismatching_missing_and_foreign_runs(self):
+        from cichlid_data.releases import run_records
+        self.assertEqual(run_records(self.L, "v1"), ([], []))                    # not frozen: nothing to compare
+        self.frozen()
+        C = self.catalog()
+        self.write_run("TreeFam", ["Mzeb", "Acal"], proteomes_md5=C.proteomes_md5(["Mzeb", "Acal"]))
+        self.assertEqual(run_records(self.L, "v1"), ([], []))
+        self.write_run("OrthoFinder", ["Mzeb", "Acal", "Drer"], proteomes_md5="0" * 32)
+        problems, notes = run_records(self.L, "v1")
+        self.assertEqual(problems, ["OrthoFinder: its proteomes differ from the ones frozen in v1"])
+        self.write_run("OrthoFinder", ["Mzeb", "Acal", "Drer"], proteomes_md5=C.proteomes_md5(["Mzeb", "Acal", "Drer"]))
+        self.write_run("Compara", ["Mzeb"])                                      # written before proteomes_md5 existed
+        problems, notes = run_records(self.L, "v1")
+        self.assertEqual(problems, [])
+        self.assertEqual(notes, ["Compara: run.json has no proteomes_md5, so its proteomes cannot be checked against "
+                                 "the frozen v1"])
+        self.write_run("Homology", ["Mzeb", "Hsap"], proteomes_md5="0" * 32)
+        self.assertEqual(run_records(self.L, "v1")[0],
+                         ["Homology: the run used species the frozen v1 does not have: Hsap"])
+        write(self.L.results("v1", "Analysis").run_record().local, "{not json")
+        self.assertIn("Analysis/run.json is not valid JSON", run_records(self.L, "v1")[0])
+
+    def test_a_newer_annotation_does_not_disturb_a_run_of_the_frozen_release(self):
+        from cichlid_data.releases import run_records
+        self.frozen()
+        self.write_run("TreeFam", ["Mzeb"], proteomes_md5=self.catalog().proteomes_md5(["Mzeb"]))
+        write(self.L.proteome("Mzeb").local, ">Mzeb_1\nMKLVAAAAAAAAAAAAAA\n")            # the annotation improves later
+        self.assertEqual(run_records(self.L, "v1"), ([], []))                    # the run still matches what was frozen
+
+
 class TestReleaseCommand(unittest.TestCase):
     def setUp(self):
         self._t = tempfile.TemporaryDirectory()
@@ -329,6 +373,30 @@ class TestReleaseCommand(unittest.TestCase):
         self.assertIn("v1 (frozen): valid", out)
         self.assertIn("note: proteome Acal: differs from the frozen v1", out)
         self.assertIn("--fast", self.run_cli("release", "--help", fail=True))
+
+    def test_release_validate_checks_the_runs_against_the_archive(self):
+        self.set_status("frozen")
+        self.run_cli("release", "freeze", "v1")
+        from cichlid_data import Catalog as _C
+        good = _C.build(self.L, self.cfg_dir()).proteomes_md5(["Mzeb", "Acal"])
+        rec = dict(release="v1", method="TreeFam", method_version="x", parameters={}, started="a", finished="b",
+                   coordinator_version=__version__, catalog_md5="m", species=["Mzeb", "Acal"])
+        run = self.L.results("v1", "TreeFam").run_record().local
+        schemas.write_run(run, **rec)                                           # no proteomes_md5: a note only
+        out = self.run_cli("release", "validate", "v1")
+        self.assertIn("v1 (frozen): valid", out)
+        self.assertIn("note: TreeFam: run.json has no proteomes_md5", out)
+        schemas.write_run(run, proteomes_md5=good, **rec)
+        out = self.run_cli("release", "validate", "v1")
+        self.assertIn("v1 (frozen): valid", out)
+        self.assertNotIn("proteomes_md5", out)
+        schemas.write_run(run, proteomes_md5="1" * 32, **rec)                   # a run on other proteomes: a problem
+        out = self.run_cli("release", "validate", "v1", fail=True)
+        self.assertIn("v1 (frozen): 1 problem(s)", out)
+        self.assertIn("TreeFam: its proteomes differ from the ones frozen in v1", out)
+
+    def cfg_dir(self):
+        return self.root / "x" / "config"
 
     def test_status_and_archive_must_agree(self):
         self.set_status("frozen")
