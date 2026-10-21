@@ -41,6 +41,11 @@ SYNONYMS = {
     "proterospongia": "proterospongia_sp",
     "saccharomyces_cerevisiae_s288c": "saccharomyces_cerevisiae",
     "schizosaccharomyces_pombe_972h-": "schizosaccharomyces_pombe",
+    # the owner's 2018 cichlid entries in TreeFam's mapping file: older names of project species. They are not leaves in
+    # any tree; the names are folded in so that none is ever an orphan (the meaning of the _b is to confirm)
+    "astatotilapia_burtoni": "haplochromis_burtoni",
+    "metriaclima_zebra": "maylandia_zebra",
+    "metriaclima_zebra_b": "maylandia_zebra",
 }
 
 

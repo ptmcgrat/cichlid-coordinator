@@ -340,7 +340,8 @@ def family_rooting(folder):
 
     `rooted` is True only when done.json says "rooted": true; `how` is its "rooting" text (for example
     "orthofinder species tree"). A family that says nothing is not rooted as far as consumers are
-    concerned: they midpoint-root it. Consumers use an existing root and root only otherwise.
+    concerned: they root it themselves, by reconciling it with the master species tree (not by midpoint). Consumers use an
+    existing root and root only otherwise.
     """
     d = read_done(folder) or {}
     if d.get("rooted") is True:

@@ -73,7 +73,7 @@ Columns: **TF** = TreeFam 9, **C** = Compara 116, **OF** = OrthoFinder. "query" 
 | Species | TF | C | OF |
 |---|---|---|---|
 | Human | ref (calls) | ref (calls) | yes (calls) |
-| Mouse | ref (calls) | ref (calls) | yes (calls) |
+| Mouse | ref | ref | yes |
 | Chicken | ref | ref | yes |
 | Western clawed frog (*Xenopus tropicalis*) | ref | ref | yes |
 | Coelacanth | ref | ref | yes |

@@ -41,7 +41,7 @@ species = ["Esur", "Acen", "Pmar", "Onil", "Nbri", "Pmic", "Sdia", "Hbur", "Mzeb
            "Locu", "Ecal", "Hsap", "Mmus", "Ggal", "Xtro", "Lcha", "Cmil", "Bflo"]
 
 [releases.v1.parts.Homology]
-description = "Orthology calls for every method and the combined calls (human, mouse, zebrafish); retained ohnologs, cichlid-specific duplications, paralogs"
+description = "Orthology calls for every method and the combined calls (human and zebrafish; mouse is not in scope for release 1); retained ohnologs, cichlid-specific duplications, paralogs"
 
 [releases.v1.parts.Analysis]
 description = "Residue maps, amino-acid changes, inversion status, genotypes"

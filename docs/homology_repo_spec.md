@@ -1,6 +1,6 @@
 # Homology decider repository: instruction sheet
 
-*For the `cichlid-homology` repository (the name is proposed). October 2026. Written against cichlid-coordinator v0.12.0. Read first: `project_manifest.md` (why the resource exists), `species_final.md` (the species), `coordinator_spec.md` (layout, schemas, family contract, releases, the clade table), `trees_repo_spec.md` and `orthofinder_repo_spec.md` (what the two tree projects write), and the TreeFam project's `docs/OUTPUTS.md` (the per-gene tables it keeps).*
+*For the `cichlid-homology` repository (the name is proposed). October 2026. Written against cichlid-coordinator v0.13.0. Read first: `project_manifest.md` (why the resource exists), `species_final.md` (the species), `coordinator_spec.md` (layout, schemas, family contract, releases, the clade table), `trees_repo_spec.md` and `orthofinder_repo_spec.md` (what the two tree projects write), and the TreeFam project's `docs/OUTPUTS.md` (the per-gene tables it keeps).*
 
 *The coordinator wrote this sheet from the project owner's goals and from what the other projects produce. Where it says "to settle in the pilot", the owner decides after the first results, and tells the coordinator if it changes anything here.*
 
@@ -17,6 +17,8 @@ This repository makes **every orthology call** of the resource. It reads the fam
 7. **For paralogs:** at which level of the ladder did they arise?
 8. **One decision per question across the three methods,** with every disagreement recorded.
 
+**Mouse is not in scope for release 1:** human and zebrafish are the only reference species for the calls. Mouse stays a leaf in the trees of all three methods (as one of the vertebrate outgroups), but nothing is called against it and it needs no identifier mapping.
+
 It does **not** build trees or alignments (projects 1 and 2), download inputs, compute residues, variants or genotypes (project 4), or build the site (project 5).
 
 **Rules (the same as for every repository):**
@@ -26,13 +28,13 @@ It does **not** build trees or alignments (projects 1 and 2), download inputs, c
 - Never download an input, and never copy the species list, the clade table or a species tree into this repository. Read them from the coordinator.
 - Never write into an input folder.
 
-Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.12,<0.13`, and use only its public API (`cichlid_data`) and its command line. If you need something it does not provide, write the coordinator a request that says what and why.
+Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.13,<0.14`, and use only its public API (`cichlid_data`) and its command line. If you need something it does not provide, write the coordinator a request that says what and why.
 
 ## 2. Repository layout (suggested)
 
 ```
 cichlid-homology/
-├── pyproject.toml           package cichlid_homology; depends on cichlid-coordinator>=0.12,<0.13
+├── pyproject.toml           package cichlid_homology; depends on cichlid-coordinator>=0.13,<0.14
 ├── src/cichlid_homology/
 │   ├── read.py              the families of each method, in one common in-memory form
 │   ├── rooting.py           rooting a family tree (section 5)
@@ -50,6 +52,7 @@ cichlid-homology/
 | Focal species, release, parts | `Catalog.load(get_layout()).releases["v1"]`: `deliver`, `parts`, `inputs` |
 | Assignments, per method | `get_layout().results("v1", part).assign(prefix)`, for `part` in `TreeFam`, `Compara`, `OrthoFinder`. For TreeFam and Compara the `flags` column (`possible_fusion`, `low_family_coverage`, `close_runner_up`) and the fusion-partner columns are the fusion evidence; for OrthoFinder `best_family` is the orthogroup and the score columns are empty |
 | Family trees and alignments | `results("v1", part).family(family).local`: `tree.nwk`, `combined.aln`, `done.json` (`tree_mode`: `place` or `denovo`; `rooted`) |
+| The species of every leaf | `LeafSpecies.load(get_layout(), part)` (`part` is `TreeFam`, `Compara` or `OrthoFinder`): `species(leaf)` gives a leaf's canonical species (the master tree's leaf name) or `None`, `of_leaves(leaves)` gives `{leaf: species}` and names any unknown leaf, `is_project_gene(leaf)`, `shadowed()`. Reference leaves come from the part's own mapping file (TreeFam's `protein_to_species.txt`, Compara's `prepared/protein_to_species.txt`), our genes by catalog prefix (`<prefix>_<id>`). The reference mapping is looked up first. `LeafSpecies.load(..., only=set_of_leaves)` keeps only those leaves, to bound memory |
 | Per-gene placement, TreeFam and Compara | the TreeFam project's `native/summary/gene_placement.tsv` (`gene_id, family, mode, status, lwr, n_placements`), `gene_status.tsv` and `skipped_families.tsv`. These are that project's own tables for now; **after your pilot, tell the coordinator which columns you read, and they become coordinator schemas** |
 | The clade ladder | `Clades.load()`: `level(name)`, `common_level(names)`, `within(level)`, `lineage(name)`. Seven nested levels; `cyclostome` is **disputed** |
 | The OrthoFinder species tree | `Catalog.load(layout).species_tree("v1", "OrthoFinder")` |
@@ -66,6 +69,15 @@ Run `cichlid-data check --release v1 --part Homology` before a run: it verifies 
 - **OrthoFinder** builds a full tree of all 35 species, every cichlid included. It is the **authority for recent duplications among our own genes.**
 - **Species coverage differs.** Teleost reference leaves: 8 in TreeFam, 37 in the pruned Compara trees (from the panel), 26 in OrthoFinder. The non-teleost bony fishes that anchor the teleost-specific duplication (spotted gar, reedfish, and bowfin if added): in Compara and OrthoFinder, **not in TreeFam**. Amphioxus: OrthoFinder only. Sea lamprey: TreeFam and Compara only.
 - **Identifiers differ.** Human and zebrafish are Ensembl release-69-era proteins in TreeFam, current Ensembl proteins in Compara, and RefSeq genes in OrthoFinder. To compare methods, the closest human or zebrafish homolog must be mapped to common identifiers (symbols, Ensembl and NCBI gene IDs). The coordinator will provide the mappings as inputs (the TreeFam archive lists a file mapping its Ensembl IDs to RefSeq and UniProt; Compara needs an Ensembl-to-NCBI mapping for human and zebrafish). Until then, compare by gene symbol and say so.
+- **Some reference species are also project species** (release 1):
+
+| Method | Reference species that are also project species | Treatment in the trees |
+|---|---|---|
+| TreeFam | `gasterosteus_aculeatus` (Gacu), `oreochromis_niloticus` (Onil) | Both stay as Ensembl-annotated reference leaves **and** are placed as our RefSeq genes: shadowed |
+| Compara | `betta_splendens` (Bspl), `gasterosteus_aculeatus` (Gacu) | Same: reference leaves (role `panel`) and placed genes: shadowed. The other five (*O. niloticus*, *N. brichardi*, *H. burtoni*, *M. zebra*, *A. calliptera*) have role `validation`: their Ensembl copies were removed from the trees when they were prepared, so they are not in the trees at all |
+| OrthoFinder | none | Every species appears once, as our proteome |
+
+  So in TreeFam and Compara a tree can hold Ensembl's stickleback (and tilapia, or betta) next to our placed genes of the same species.
 - **Placement support varies.** In release 1, 4.7% of placed TreeFam genes and 6.4% of placed Compara genes have a best placement under 0.5 (the alternatives are in each family's `epa_result.jplace`). A gene in a de novo tree, or with no informative sites, is not placed.
 
 ## 5. Definitions (decided)
@@ -73,6 +85,7 @@ Run `cichlid-data check --release v1 --part Homology` before a run: it verifies 
 - **Relationship to a reference species R** (human or zebrafish): `1:1` (one R gene, one focal gene, no duplication since they separated), `1:many` (one R gene, several focal co-orthologs), `many:1`, `many:many`, **`paralog`** (the closest R gene is not an ortholog of the focal gene), or `none` (no R gene in the family).
 - **Closest** means by position in the tree: the R genes in the smallest clade containing the focal gene and at least one R gene; branch length breaks ties.
 - **Duplication or speciation:** by species overlap (a node is a duplication if its two sides share species; the threshold is to settle in the pilot). This needs no species tree.
+- **Shadowed species are ignored for duplication calls.** A reference leaf whose species is also a project species (the table in section 4; `LeafSpecies.shadowed()`) is dropped before species overlap is computed, and our placed genes stand for the species. Ensembl's copy and our RefSeq gene are two annotations of the same genome, so counting them as shared species would call a duplication at every such pair. This is the rule the coordinator already applied to the five cichlids (role `validation`). Record it in `run.json`; the owner can overrule it.
 - **Rooting:** **not midpoint rooting.** The TreeFam and Compara trees are unrooted on purpose. Root each tree by reconciling it with a species tree (the root that gives the fewest duplications), using the master species tree (`master_tree.load_master_tree()`). OrthoFinder's trees may already be rooted (read `done.json`).
 - **Dating a duplication:** the **common level** of the species below the duplication node, `Clades.common_level(species)`. Two cichlids meet at `cichlid`, a cichlid and a zebrafish at `teleost`, a cichlid and a human at `gnathostome`.
 - **Retained ohnolog pair (teleost-specific):** both copies present across several teleost levels, with the non-teleost outgroup (gar, reedfish) holding one copy. **Recent duplication:** the second copy confined to one level or one species. Gene positions allow an optional synteny check for chromosome-level genomes.

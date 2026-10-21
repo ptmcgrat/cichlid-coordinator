@@ -18,7 +18,10 @@ class TestCanonical(unittest.TestCase):
         self.assertEqual(mt.canonical("Spermophilus_tridecemlineatus"), "ictidomys_tridecemlineatus")
         self.assertEqual(mt.canonical(" Anguilla anguilla "), "anguilla_anguilla")
         self.assertEqual(mt.canonical("schizosaccharomyces_pombe_972h-"), "schizosaccharomyces_pombe")
-        self.assertEqual(len(mt.SYNONYMS), 8)                    # the eight spellings TreeFam's species tree uses
+        self.assertEqual(len(mt.SYNONYMS), 11)                   # TreeFam's eight tree spellings and the owner's three 2018 names
+        self.assertEqual(mt.canonical("Astatotilapia_burtoni"), "haplochromis_burtoni")
+        self.assertEqual(mt.canonical("Metriaclima_zebra"), "maylandia_zebra")
+        self.assertEqual(mt.canonical("Metriaclima_zebra_b"), "maylandia_zebra")
 
 
 class TestTheCommittedTree(unittest.TestCase):

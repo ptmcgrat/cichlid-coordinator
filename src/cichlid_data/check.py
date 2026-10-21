@@ -28,9 +28,12 @@ COMPARA = {"Inputs/Families/Compara116/prepared/trees": "dir",
            "Inputs/Families/Compara116/prepared/protein_to_species.txt": "file",
            "Inputs/Families/Compara116/prepared/family_audit.tsv": "file"}
 NAMES = {"Inputs/Annotations/Legacy2018": "dir"}
+# the files that say which species each reference leaf of a TreeFam or Compara tree belongs to
+LEAF_SPECIES = {"Inputs/Families/TreeFam9/protein_to_species.txt": "file",
+                "Inputs/Families/Compara116/prepared/protein_to_species.txt": "file"}
 # by part: what a part needs besides the proteomes of its species. The 2018 name tables are for the
-# orthology calls (reference gene names), which the Homology part makes.
-REQUIREMENTS = {"TreeFam": TREEFAM, "Compara": COMPARA, "OrthoFinder": {}, "Homology": NAMES, "Analysis": {}}
+# orthology calls (reference gene names), and the leaf-to-species files for dating duplications: the Homology part's.
+REQUIREMENTS = {"TreeFam": TREEFAM, "Compara": COMPARA, "OrthoFinder": {}, "Homology": {**NAMES, **LEAF_SPECIES}, "Analysis": {}}
 # resources whose source record is verified (the folder holding source.json)
 RECORDED = {"Inputs/Families/TreeFam9", "Inputs/Families/Compara116", "Inputs/Annotations/Legacy2018"}
 
@@ -130,6 +133,21 @@ def _check_part(layout, catalog, root, rel, part, m, fetch, deep, store, say, ve
         except (OSError, ValueError, KeyError) as e:
             probs = [str(e)]
         findings.append(Finding(m, "species_tree_master.nwk", not probs, "valid" if not probs else "; ".join(probs[:3])))
+        from .leaf_species import reference_species_in_mapping
+        try:                                             # every species the mapping files name must be in the master tree
+            in_tree = {l.name for l in master_tree.load_master_tree(cfg).leaves()}
+            counts, missing = {}, {}
+            for p in ("TreeFam", "Compara"):
+                names = reference_species_in_mapping(layout, p)
+                counts[p] = len(names)
+                if names - in_tree:
+                    missing[p] = sorted(names - in_tree)
+            ok = not missing
+            detail = ("all in the master tree (" + ", ".join(f"{p} {n} species" for p, n in counts.items()) + ")" if ok else
+                      "; ".join(f"{p}: {', '.join(v[:4])}" for p, v in missing.items()) + " not in the master tree")
+        except OSError as e:
+            ok, detail = False, f"{e} (run `cichlid-data check --fetch`)"
+        findings.append(Finding(m, "reference leaf species in the master tree", ok, detail))
     if catalog.part(rel, part).get("species_tree"):
         name = catalog.part(rel, part)["species_tree"]
         probs = check_species_tree(catalog.species_tree(rel, part),
