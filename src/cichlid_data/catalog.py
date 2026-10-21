@@ -38,6 +38,7 @@ from .provenance import md5sum, read_record
 ROLES = ("project", "relative", "reference", "outgroup", "candidate")
 PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*$")
 CATALOG_VERSION = 2
+CLADES_FILE = "species_clades.tsv"
 STATUSES = ("planned", "building", "frozen", "published", "superseded")
 FROZEN_STATUSES = ("frozen", "published")        # these have an archive in Releases/<release>/
 TREE_PARTS = ("TreeFam", "Compara", "OrthoFinder")   # the parts that run on a list of species
@@ -220,7 +221,7 @@ class Catalog:
                 s.status = "local source only"
             s.used_by = [f"{rel}/{part}" for rel, r in releases.items() for part, m in r["parts"].items()
                          if p in m["species"]]
-        files = ["species_sets.toml", "releases.toml", "species.tsv", "compara_panel.tsv"] + sorted(
+        files = ["species_sets.toml", "releases.toml", "species.tsv", "compara_panel.tsv", "species_clades.tsv"] + sorted(
             {m["species_tree"] for r in releases.values() for m in r["parts"].values() if m.get("species_tree")})
         meta = {"catalog_version": CATALOG_VERSION, "built": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "built_by": f"cichlid-data {__version__}",
@@ -338,6 +339,12 @@ class Catalog:
             if p.lower() in lower:
                 errors.append(f"{p} and {lower[p.lower()]}: prefixes differ only in case")
             lower[p.lower()] = p
+        if self.cfg is not None and (self.cfg / CLADES_FILE).is_file():            # optional: required by the Homology part
+            from .clades import Clades
+            try:
+                errors += [f"{CLADES_FILE}: {pr}" for pr in Clades.load(self.cfg).validate(self, self.cfg)]
+            except ValueError as e:
+                errors.append(str(e))
         names = [release] if release else list(self.releases)
         for rel in names:
             if rel not in self.releases:

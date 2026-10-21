@@ -1,6 +1,6 @@
 # Coordinator repository: instruction sheet
 
-*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.10.0.*
+*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.11.0.*
 
 ## 1. Role
 
@@ -21,7 +21,7 @@ It does **not** run tree methods, make orthology calls, analyze results or serve
 |---|---|---|---|---|
 | 1 | `cichlid-trees`: TreeFam and Compara | proteomes, the catalog, TreeFam 9 and Compara 116 | per run: family folders (tree, `combined.aln`, `done.json`), assignment tables for each placed species, `run.json` | `trees_repo_spec.md` |
 | 2 | `cichlid-orthofinder` | proteomes, the catalog, the OrthoFinder species tree | per run: family folders (orthogroups), assignment tables, `native/`, `run.json` | `orthofinder_repo_spec.md` |
-| 3 | `cichlid-homology`*: the homology decider | the families of 1 and 2 (all three methods), a species-to-clade table, reference gene names | orthology calls per method and combined (human, mouse, zebrafish), retained ohnologs, cichlid-specific duplications and paralogs | to be written |
+| 3 | `cichlid-homology`*: the homology decider | the families of 1 and 2 (all three methods), the clade table, a species tree for rooting, identifier mappings, reference gene names | per focal species: fusions, closest human and zebrafish homolog and relationship, teleost pattern, retained ohnologs versus recent duplications, the ladder level of each duplication, and one decision per question across the methods with every disagreement recorded | `homology_repo_spec.md` |
 | 4 | `cichlid-analysis`*: additional data | population variation (VCFs, inversions, genotypes), alignments, the calls of 3 | residue maps and amino-acid changes, inversion status, genotypes | to be written |
 | 5 | `cichlid-server`*: the web server | all of the above, expression, annotations | the public site | to be written |
 
@@ -42,6 +42,7 @@ cichlid-coordinator/
 │   ├── species_sets.toml    every organism the project uses, and its role
 │   ├── releases.toml        the releases: status, delivered species, input versions, and each part's species and species tree
 │   ├── species_tree_orthofinder.nwk   rooted, fully resolved tree of the 35 OrthoFinder species (for -s)
+│   ├── species_clades.tsv   the clade ladder: the narrowest of seven nested levels for every species of every method
 │   ├── compara_panel.tsv    Compara reference panel (role per Ensembl species)
 │   └── sources.toml         every external resource: path, URL/accession, version, licence, citation
 ├── src/cichlid_data/
@@ -61,7 +62,7 @@ cichlid-coordinator/
 │   ├── migrate.py           one-time move from the old layout
 │   └── cli.py               the cichlid-data command
 ├── tests/                   all tests run offline against LocalBackend
-└── docs/                    project manifest, species lists, this sheet, the sheets for the TreeFam/Compara and OrthoFinder repositories
+└── docs/                    project manifest, species lists, this sheet, the sheets for the TreeFam/Compara, OrthoFinder and homology repositories
 ```
 
 ## 3. Data layout (the paths Layout must produce)
@@ -181,6 +182,12 @@ Queries: `catalog.species(release=..., part=..., role=..., status=...)` (a relea
 **Species tree.** A part may name a species tree in `releases.toml` (`species_tree = "species_tree_orthofinder.nwk"`, a file in `config/`). It must parse, be rooted and fully resolved (two children at the root and at every node), and have exactly the part's species as leaves. `catalog validate` and `catalog build` check it (an invalid tree stops the catalog from being written, so the tree and the species list cannot drift apart), and so does `cichlid-data check` for that part. `catalog.species_tree(release, part)` returns its path (`KeyError` if the part names none); its checksum is recorded with the other configuration files in `catalog.json`. The OrthoFinder tree is the one in `species_final.md`; a test keeps the two identical. Adding a species to OrthoFinder therefore means changing the list **and** the tree.
 
 Commands: `cichlid-data catalog build | show | missing | validate | tree`, with `--release`, `--part` and `--role` (`catalog tree --part P` prints the species tree's path, for scripts; `--release` may be left out while only one release is live).
+
+### Clades (`clades.py`)
+
+`config/species_clades.tsv` gives every species of every method (the 35 OrthoFinder species, the leaves of the pruned Compara trees, TreeFam's 114 species, and the candidates) the narrowest of **seven nested levels**, from outside to inside: `outside_vertebrates` (no vertebrate genome duplication: invertebrates, tunicates, amphioxus, plants, fungi), `cyclostome` (lamprey and hagfish; **disputed**: whether they share the second vertebrate round is disputed), `gnathostome` (jawed vertebrates outside the teleosts: both rounds), `teleost`, `percomorph`, `ovalentaria`, `cichlid`. Columns: `species` (Ensembl-style, lower case), `prefix` (the project prefix, if any), `clade`, `lineage` (a finer group for chordates and non-teleost vertebrates: `chondrichthyan`, `sarcopterygian`, `non-teleost actinopterygian`, `cephalochordate`, `tunicate`, ...), `basis` (where the label comes from) and `notes`.
+
+`Clades.load()` reads it; `level(name)` takes a prefix or a species name in any case; `common_level(names)` returns the **outermost** of the species' levels, which is where their last common ancestor sits on the ladder (two cichlids meet at `cichlid`, a cichlid and a zebrafish at `teleost`, a cichlid and a human at `gnathostome`) and so dates a duplication; `within(level)` lists the species at that level or inside it; `lineage(name)`; `rank(level)`. `validate(catalog, cfg)` returns problems: a level outside the ladder, a repeated name or prefix, a catalog organism with no row, a leaf of the pruned Compara trees with no row. `catalog validate` and `catalog build` apply it when the file exists, and `check` requires it for the Homology part. Tests keep the table in step with the agreed OrthoFinder species tree and with the Compara panel's group labels.
 
 ### SourceRecord (`provenance.py`)
 

@@ -115,6 +115,15 @@ def _check_part(layout, catalog, root, rel, part, m, fetch, deep, store, say, ve
                 continue
             detail = "no source record" if probs is None else "matches its source record"
         findings.append(Finding(m, res, True, detail))
+    if part == "Homology":                               # the calls date duplications by the clade table
+        from .clades import Clades
+        from .config import config_dir
+        cfg = catalog.cfg or config_dir()
+        try:
+            probs = Clades.load(cfg).validate(catalog, cfg)
+        except (FileNotFoundError, ValueError) as e:
+            probs = [str(e)]
+        findings.append(Finding(m, "species_clades.tsv", not probs, "valid" if not probs else "; ".join(probs[:3])))
     if catalog.part(rel, part).get("species_tree"):
         name = catalog.part(rel, part)["species_tree"]
         probs = check_species_tree(catalog.species_tree(rel, part),

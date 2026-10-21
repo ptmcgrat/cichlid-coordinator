@@ -1,0 +1,175 @@
+# Species-to-clade table. One row per species that appears as a leaf in a method's trees, or that is a candidate.
+# clade is the narrowest of seven nested levels, from outside to inside:
+#   outside_vertebrates  no vertebrate whole-genome duplication (invertebrates, tunicates, amphioxus; also plants and fungi)
+#   cyclostome           lamprey and hagfish (DISPUTED): they share the first vertebrate round (1R) with the jawed vertebrates;
+#                        whether they share the second (2R) is disputed, so treat their position with care
+#   gnathostome          jawed vertebrates outside the teleosts: both rounds (1R and 2R). Elephant shark, coelacanth, tetrapods,
+#                        and the non-teleost bony fishes (gar, bowfin, reedfish); see the lineage column
+#   teleost              Teleostei, but not Percomorpha: both rounds plus the teleost-specific round
+#   percomorph           Percomorpha, but not Ovalentaria
+#   ovalentaria          Ovalentaria, but not cichlid (includes the sister family Pholidichthyidae)
+#   cichlid              Cichlidae
+# Later, lineage-specific duplications (salmonids, carp and goldfish) are not marked: those species are not leaves in the trees.
+# lineage is a finer group for the chordates and the non-teleost vertebrates. basis says where each label comes from; 'to confirm'
+# rows need the owner. species is the Ensembl-style name (lower case, underscores); names are matched case-insensitively.
+species	prefix	clade	lineage	basis	notes
+amphilophus_citrinellus	Acit	cichlid		Compara panel group 'cichlid'	
+archocentrus_centrarchus	Acen	cichlid		agreed species tree (species_final.md)	
+astatotilapia_burtoni		cichlid		TreeFam species list (one of five cichlid entries the owner added in 2018); cichlid by genus	Astatotilapia burtoni is the older name of Haplochromis burtoni (Hbur); an older entry, not the project's proteome
+astatotilapia_calliptera	Acal	cichlid		agreed species tree (species_final.md); Compara panel agrees	
+etroplus_suratensis	Esur	cichlid		agreed species tree (species_final.md)	
+haplochromis_burtoni	Hbur	cichlid		agreed species tree (species_final.md); Compara panel agrees	
+maylandia_zebra	Mzeb	cichlid		agreed species tree (species_final.md); Compara panel agrees	
+metriaclima_zebra		cichlid		TreeFam species list (one of five cichlid entries the owner added in 2018); cichlid by genus	Metriaclima is the older genus name of Maylandia zebra (Mzeb); an older entry, not the project's proteome
+metriaclima_zebra_b		cichlid		TreeFam species list (one of five cichlid entries the owner added in 2018); cichlid by genus	a second Metriaclima zebra entry; what the _b means is to confirm
+neolamprologus_brichardi	Nbri	cichlid		agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+oreochromis_niloticus	Onil	cichlid		agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+pelmatolapia_mariae	Pmar	cichlid		agreed species tree (species_final.md)	
+perissodus_microlepis	Pmic	cichlid		agreed species tree (species_final.md)	
+pundamilia_nyererei		cichlid		Compara panel group 'cichlid'; also in TreeFam's list	
+simochromis_diagramma	Sdia	cichlid		agreed species tree (species_final.md)	
+acanthochromis_polyacanthus		ovalentaria		Compara panel group 'ovalentaria'	
+amphiprion_ocellaris	Aoce	ovalentaria		agreed species tree (species_final.md); Compara panel agrees	
+cyprinodon_variegatus		ovalentaria		Compara panel group 'ovalentaria'	
+fundulus_heteroclitus	Fhet	ovalentaria		agreed species tree (species_final.md); Compara panel agrees	
+kryptolebias_marmoratus		ovalentaria		Compara panel group 'ovalentaria'	
+nothobranchius_furzeri	Nfur	ovalentaria		agreed species tree (species_final.md); Compara panel agrees	
+oryzias_latipes	Olat	ovalentaria		agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+pholidichthys_leucotaenia	Plst	ovalentaria		candidate species (to confirm)	candidate; sister family of cichlids (species_reference.md); to confirm
+poecilia_reticulata	Pret	ovalentaria		agreed species tree (species_final.md); Compara panel agrees	
+xiphophorus_maculatus	Xmac	ovalentaria		agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+anabas_testudineus		percomorph		Compara panel group 'percomorph'	
+betta_splendens	Bspl	percomorph		agreed species tree (species_final.md); Compara panel agrees	
+cottoperca_gobio		percomorph		Compara panel group 'percomorph'	
+cyclopterus_lumpus		percomorph		Compara panel group 'percomorph'	
+dicentrarchus_labrax		percomorph		Compara panel group 'percomorph'	
+gasterosteus_aculeatus	Gacu	percomorph		agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+hippocampus_comes		percomorph		Compara panel group 'percomorph'	
+labrus_bergylta		percomorph		Compara panel group 'percomorph'	
+larimichthys_crocea		percomorph		Compara panel group 'percomorph'	
+lates_calcarifer		percomorph		Compara panel group 'percomorph'	
+mastacembelus_armatus		percomorph		Compara panel group 'percomorph'	
+sander_lucioperca		percomorph		Compara panel group 'percomorph'	
+scophthalmus_maximus		percomorph		Compara panel group 'percomorph'	
+seriola_dumerili		percomorph		Compara panel group 'percomorph'	
+sparus_aurata		percomorph		Compara panel group 'percomorph'	
+takifugu_rubripes	Trub	percomorph		agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+tetraodon_nigroviridis		percomorph		TreeFam species list; fish placed by family and order	Tetraodontiformes, like takifugu_rubripes (percomorph in the Compara panel)
+anguilla_anguilla	Aang	teleost		agreed species tree (species_final.md)	
+astyanax_mexicanus	Amex	teleost		agreed species tree (species_final.md); Compara panel agrees	
+clupea_harengus	Char	teleost		agreed species tree (species_final.md); Compara panel agrees	
+danio_rerio	Drer	teleost		agreed species tree (species_final.md); also in TreeFam's list	
+denticeps_clupeoides		teleost		Compara panel group 'teleost'	
+electrophorus_electricus		teleost		Compara panel group 'teleost'	
+esox_lucius	Eluc	teleost		agreed species tree (species_final.md); Compara panel agrees	
+gadus_morhua	Gmor	teleost		agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+ictalurus_punctatus		teleost		Compara panel group 'teleost'	
+myripristis_murdjan		teleost		Compara panel group 'teleost'	
+paramormyrops_kingsleyae	Pkin	teleost		agreed species tree (species_final.md); Compara panel agrees	
+ailuropoda_melanoleuca		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+amia_calva	Amca	gnathostome	non-teleost actinopterygian	candidate species (to confirm)	candidate; bowfin, a non-teleost actinopterygian; to confirm
+anolis_carolinensis		gnathostome	sarcopterygian	Compara panel group 'vertebrate'; also in TreeFam's list	
+bos_taurus		gnathostome	sarcopterygian	Compara panel group 'vertebrate'; also in TreeFam's list	
+callithrix_jacchus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+callorhinchus_milii	Cmil	gnathostome	chondrichthyan	agreed species tree (species_final.md); Compara panel agrees	elephant shark: a jawed vertebrate with both rounds; the outgroup to the bony vertebrates, not a single-duplication animal
+canis_familiaris		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	same species as canis_lupus_familiaris (the Compara panel's spelling)
+canis_lupus_familiaris		gnathostome	sarcopterygian	Compara panel group 'vertebrate'	
+cavia_porcellus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+choloepus_hoffmanni		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+dasypus_novemcinctus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+dipodomys_ordii		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+echinops_telfairi		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+equus_caballus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+erinaceus_europaeus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+erpetoichthys_calabaricus	Ecal	gnathostome	non-teleost actinopterygian	agreed species tree (species_final.md); Compara panel agrees	
+felis_catus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+gallus_gallus	Ggal	gnathostome	sarcopterygian	agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+gorilla_gorilla		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+homo_sapiens	Hsap	gnathostome	sarcopterygian	agreed species tree (species_final.md); also in TreeFam's list	
+ictidomys_tridecemlineatus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+latimeria_chalumnae	Lcha	gnathostome	sarcopterygian	agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+lepisosteus_oculatus	Locu	gnathostome	non-teleost actinopterygian	agreed species tree (species_final.md); Compara panel agrees	
+loxodonta_africana		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+macaca_mulatta		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+macropus_eugenii		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+meleagris_gallopavo		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+microcebus_murinus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+monodelphis_domestica		gnathostome	sarcopterygian	Compara panel group 'vertebrate'; also in TreeFam's list	
+mus_musculus	Mmus	gnathostome	sarcopterygian	agreed species tree (species_final.md); also in TreeFam's list	
+mustela_putorius_furo		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+myotis_lucifugus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+nomascus_leucogenys		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+ochotona_princeps		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+ornithorhynchus_anatinus		gnathostome	sarcopterygian	Compara panel group 'vertebrate'; also in TreeFam's list	
+oryctolagus_cuniculus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+otolemur_garnettii		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+pan_troglodytes		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+pelodiscus_sinensis		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+pongo_abelii		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+procavia_capensis		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+pteropus_vampyrus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+rattus_norvegicus		gnathostome	sarcopterygian	Compara panel group 'vertebrate'; also in TreeFam's list	
+sarcophilus_harrisii		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+sorex_araneus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+sus_scrofa		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+taeniopygia_guttata		gnathostome	sarcopterygian	Compara panel group 'vertebrate'; also in TreeFam's list	
+tarsius_syrichta		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+tupaia_belangeri		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+tursiops_truncatus		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+vicugna_pacos		gnathostome	sarcopterygian	TreeFam species list; a jawed vertebrate outside the teleosts	
+xenopus_tropicalis	Xtro	gnathostome	sarcopterygian	agreed species tree (species_final.md); Compara panel agrees; also in TreeFam's list	
+petromyzon_marinus		cyclostome	cyclostome (lamprey)	Compara panel group 'vertebrate'; the lamprey is a cyclostome; also in TreeFam's list	1R shared with the jawed vertebrates; DISPUTED: whether the cyclostomes share the second round (2R) is disputed in the literature
+acyrthosiphon_pisum		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+aedes_aegypti		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+amphimedon_queenslandica		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+anopheles_darlingi		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+anopheles_gambiae		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+apis_mellifera		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+arabidopsis_thaliana		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+atta_cephalotes		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+bombyx_mori		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+branchiostoma_floridae	Bflo	outside_vertebrates	cephalochordate	agreed species tree (species_final.md)	amphioxus: diverged before the vertebrate duplications
+bursaphelenchus_xylophilus		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+caenorhabditis_brenneri		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+caenorhabditis_briggsae		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+caenorhabditis_elegans		outside_vertebrates		Compara panel group 'outgroup'; also in TreeFam's list	no vertebrate duplication
+caenorhabditis_japonica		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+caenorhabditis_remanei		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+capitella_teleta		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+ciona_intestinalis		outside_vertebrates	tunicate	Compara panel group 'outgroup'; also in TreeFam's list	diverged before the vertebrate duplications
+ciona_savignyi		outside_vertebrates	tunicate	TreeFam species list; not a vertebrate	diverged before the vertebrate duplications
+culex_quinquefasciatus		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+danaus_plexippus		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+daphnia_pulex		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_ananassae		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_erecta		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_grimshawi		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_melanogaster		outside_vertebrates		Compara panel group 'outgroup'; also in TreeFam's list	no vertebrate duplication
+drosophila_mojavensis		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_persimilis		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_pseudoobscura		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_sechellia		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_simulans		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_virilis		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_willistoni		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+drosophila_yakuba		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+heliconius_melpomene		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+helobdella_robusta		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+heterorhabditis_bacteriophora		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+ixodes_scapularis		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+lottia_gigantea		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+meloidogyne_hapla		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+monosiga_brevicollis		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+nasonia_vitripennis		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+nematostella_vectensis		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+pediculus_humanus		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+pristionchus_pacificus		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+proterospongia_sp		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+saccharomyces_cerevisiae		outside_vertebrates		Compara panel group 'outgroup'; also in TreeFam's list	no vertebrate duplication
+schistosoma_mansoni		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+schizosaccharomyces_pombe		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+strongylocentrotus_purpuratus		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+strongyloides_ratti		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+tribolium_castaneum		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+trichinella_spiralis		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
+trichoplax_adhaerens		outside_vertebrates		TreeFam species list; not a vertebrate	no vertebrate duplication
