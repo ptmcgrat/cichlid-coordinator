@@ -1,6 +1,6 @@
 # Homology decider repository: instruction sheet
 
-*For the `cichlid-homology` repository (the name is proposed). October 2026. Written against cichlid-coordinator v0.11.0. Read first: `project_manifest.md` (why the resource exists), `species_final.md` (the species), `coordinator_spec.md` (layout, schemas, family contract, releases, the clade table), `trees_repo_spec.md` and `orthofinder_repo_spec.md` (what the two tree projects write), and the TreeFam project's `docs/OUTPUTS.md` (the per-gene tables it keeps).*
+*For the `cichlid-homology` repository (the name is proposed). October 2026. Written against cichlid-coordinator v0.12.0. Read first: `project_manifest.md` (why the resource exists), `species_final.md` (the species), `coordinator_spec.md` (layout, schemas, family contract, releases, the clade table), `trees_repo_spec.md` and `orthofinder_repo_spec.md` (what the two tree projects write), and the TreeFam project's `docs/OUTPUTS.md` (the per-gene tables it keeps).*
 
 *The coordinator wrote this sheet from the project owner's goals and from what the other projects produce. Where it says "to settle in the pilot", the owner decides after the first results, and tells the coordinator if it changes anything here.*
 
@@ -26,13 +26,13 @@ It does **not** build trees or alignments (projects 1 and 2), download inputs, c
 - Never download an input, and never copy the species list, the clade table or a species tree into this repository. Read them from the coordinator.
 - Never write into an input folder.
 
-Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.11,<0.12`, and use only its public API (`cichlid_data`) and its command line. If you need something it does not provide, write the coordinator a request that says what and why.
+Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.12,<0.13`, and use only its public API (`cichlid_data`) and its command line. If you need something it does not provide, write the coordinator a request that says what and why.
 
 ## 2. Repository layout (suggested)
 
 ```
 cichlid-homology/
-├── pyproject.toml           package cichlid_homology; depends on cichlid-coordinator>=0.11,<0.12
+├── pyproject.toml           package cichlid_homology; depends on cichlid-coordinator>=0.12,<0.13
 ├── src/cichlid_homology/
 │   ├── read.py              the families of each method, in one common in-memory form
 │   ├── rooting.py           rooting a family tree (section 5)
@@ -53,7 +53,7 @@ cichlid-homology/
 | Per-gene placement, TreeFam and Compara | the TreeFam project's `native/summary/gene_placement.tsv` (`gene_id, family, mode, status, lwr, n_placements`), `gene_status.tsv` and `skipped_families.tsv`. These are that project's own tables for now; **after your pilot, tell the coordinator which columns you read, and they become coordinator schemas** |
 | The clade ladder | `Clades.load()`: `level(name)`, `common_level(names)`, `within(level)`, `lineage(name)`. Seven nested levels; `cyclostome` is **disputed** |
 | The OrthoFinder species tree | `Catalog.load(layout).species_tree("v1", "OrthoFinder")` |
-| A species tree for the other methods, and the master species tree | **To come from the coordinator** (section 5, rooting). Not yet available |
+| The master species tree, for rooting | `cichlid_data.master_tree.load_master_tree()`: one rooted tree over the 154 species that are leaves in any method's trees (the agreed OrthoFinder tree is its backbone). `master_tree.canonical(name)` gives a species' leaf name (TreeFam's mapping file and its tree spell a few species differently) |
 | Mappings of human and zebrafish identifiers across methods | **To come from the coordinator** (section 4). Not yet available |
 | Reference gene names | the 2018 name tables, `Inputs/Annotations/Legacy2018` (a requirement of the Homology part) |
 | Gene positions, for an optional synteny check | `layout.genes_table(prefix)` |
@@ -73,7 +73,7 @@ Run `cichlid-data check --release v1 --part Homology` before a run: it verifies 
 - **Relationship to a reference species R** (human or zebrafish): `1:1` (one R gene, one focal gene, no duplication since they separated), `1:many` (one R gene, several focal co-orthologs), `many:1`, `many:many`, **`paralog`** (the closest R gene is not an ortholog of the focal gene), or `none` (no R gene in the family).
 - **Closest** means by position in the tree: the R genes in the smallest clade containing the focal gene and at least one R gene; branch length breaks ties.
 - **Duplication or speciation:** by species overlap (a node is a duplication if its two sides share species; the threshold is to settle in the pilot). This needs no species tree.
-- **Rooting:** **not midpoint rooting.** The TreeFam and Compara trees are unrooted on purpose. Root each tree by reconciling it with a species tree (the root that gives the fewest duplications), using the master species tree the coordinator will provide. OrthoFinder's trees may already be rooted (read `done.json`).
+- **Rooting:** **not midpoint rooting.** The TreeFam and Compara trees are unrooted on purpose. Root each tree by reconciling it with a species tree (the root that gives the fewest duplications), using the master species tree (`master_tree.load_master_tree()`). OrthoFinder's trees may already be rooted (read `done.json`).
 - **Dating a duplication:** the **common level** of the species below the duplication node, `Clades.common_level(species)`. Two cichlids meet at `cichlid`, a cichlid and a zebrafish at `teleost`, a cichlid and a human at `gnathostome`.
 - **Retained ohnolog pair (teleost-specific):** both copies present across several teleost levels, with the non-teleost outgroup (gar, reedfish) holding one copy. **Recent duplication:** the second copy confined to one level or one species. Gene positions allow an optional synteny check for chromosome-level genomes.
 - **Cyclostomes are disputed.** Do not date or conclude anything by the `cyclostome` level; flag it.

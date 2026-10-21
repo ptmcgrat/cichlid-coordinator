@@ -1,6 +1,6 @@
 # Coordinator repository: instruction sheet
 
-*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.11.0.*
+*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.12.0.*
 
 ## 1. Role
 
@@ -43,6 +43,8 @@ cichlid-coordinator/
 │   ├── releases.toml        the releases: status, delivered species, input versions, and each part's species and species tree
 │   ├── species_tree_orthofinder.nwk   rooted, fully resolved tree of the 35 OrthoFinder species (for -s)
 │   ├── species_clades.tsv   the clade ladder: the narrowest of seven nested levels for every species of every method
+│   ├── species_tree_master.nwk   one rooted tree over the 154 species that are leaves in any method's trees (built, see below)
+│   ├── species_tree_treefam9.phy   TreeFam 9's species tree (TreeFam FTP archive; licence to confirm), a source of the master tree
 │   ├── compara_panel.tsv    Compara reference panel (role per Ensembl species)
 │   └── sources.toml         every external resource: path, URL/accession, version, licence, citation
 ├── src/cichlid_data/
@@ -188,6 +190,14 @@ Commands: `cichlid-data catalog build | show | missing | validate | tree`, with 
 `config/species_clades.tsv` gives every species of every method (the 35 OrthoFinder species, the leaves of the pruned Compara trees, TreeFam's 114 species, and the candidates) the narrowest of **seven nested levels**, from outside to inside: `outside_vertebrates` (no vertebrate genome duplication: invertebrates, tunicates, amphioxus, plants, fungi), `cyclostome` (lamprey and hagfish; **disputed**: whether they share the second vertebrate round is disputed), `gnathostome` (jawed vertebrates outside the teleosts: both rounds), `teleost`, `percomorph`, `ovalentaria`, `cichlid`. Columns: `species` (Ensembl-style, lower case), `prefix` (the project prefix, if any), `clade`, `lineage` (a finer group for chordates and non-teleost vertebrates: `chondrichthyan`, `sarcopterygian`, `non-teleost actinopterygian`, `cephalochordate`, `tunicate`, ...), `basis` (where the label comes from) and `notes`.
 
 `Clades.load()` reads it; `level(name)` takes a prefix or a species name in any case; `common_level(names)` returns the **outermost** of the species' levels, which is where their last common ancestor sits on the ladder (two cichlids meet at `cichlid`, a cichlid and a zebrafish at `teleost`, a cichlid and a human at `gnathostome`) and so dates a duplication; `within(level)` lists the species at that level or inside it; `lineage(name)`; `rank(level)`. `validate(catalog, cfg)` returns problems: a level outside the ladder, a repeated name or prefix, a catalog organism with no row, a leaf of the pruned Compara trees with no row. `catalog validate` and `catalog build` apply it when the file exists, and `check` requires it for the Homology part. Tests keep the table in step with the agreed OrthoFinder species tree and with the Compara panel's group labels.
+
+### Master species tree (`master_tree.py`)
+
+`config/species_tree_master.nwk` is one rooted tree over every species that is a leaf in any method's trees (154 species, topology only, no branch lengths). The homology decider roots gene trees with it. `load_master_tree()` reads it; `canonical(name)` gives a species' leaf name (lower case, underscores, and the eight alternative spellings TreeFam's tree uses folded into one: `canis_familiaris` is `canis_lupus_familiaris`, `spermophilus_tridecemlineatus` is `ictidomys_tridecemlineatus`, and so on).
+
+`build()` makes it, and the committed file must equal what `build()` gives (a test checks): **the tree agreed for OrthoFinder is the backbone** for the fish and the main vertebrate branches and is kept exactly (the master pruned to its 35 species equals it); **TreeFam 9's species tree supplies everything else** (mammals, birds, invertebrates), but it is a taxonomy tree with polytomies and an older fish classification (it has no Ovalentaria, and separates tilapia from medaka and platyfish), so its 8 fish are replaced by the agreed teleosts; the fish that only the Compara panel has attach at their ladder level as an unresolved polytomy, a TreeFam fish next to its TreeFam relative, and the shark, gar, reedfish and amphioxus (not in TreeFam's tree) go where the agreed tree has them. Polytomies do little harm: the tree only chooses a gene tree's root, and duplications are called by species overlap. `python -m cichlid_data.master_tree --write` rebuilds the file.
+
+`check(tree)` returns problems: a leaf twice, missing, or that no method has, or with no row in the clade table; a root that is not binary; a node with one child; the agreed tree not preserved; **a ladder level whose species do not form a clade**. Because every level is a clade, the level of the clade where two species meet in the tree is always `Clades.common_level` of the pair, which a test checks on a sample of pairs. `catalog validate` applies the check when the file exists, and `check` requires it for the Homology part. Species in the clade table that are not leaves anywhere (the owner's five 2018 cichlid entries of TreeFam's mapping file, and two candidates) are not in the tree.
 
 ### SourceRecord (`provenance.py`)
 

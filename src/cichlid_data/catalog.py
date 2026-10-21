@@ -221,7 +221,8 @@ class Catalog:
                 s.status = "local source only"
             s.used_by = [f"{rel}/{part}" for rel, r in releases.items() for part, m in r["parts"].items()
                          if p in m["species"]]
-        files = ["species_sets.toml", "releases.toml", "species.tsv", "compara_panel.tsv", "species_clades.tsv"] + sorted(
+        files = ["species_sets.toml", "releases.toml", "species.tsv", "compara_panel.tsv", "species_clades.tsv",
+                 "species_tree_treefam9.phy", "species_tree_master.nwk"] + sorted(
             {m["species_tree"] for r in releases.values() for m in r["parts"].values() if m.get("species_tree")})
         meta = {"catalog_version": CATALOG_VERSION, "built": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "built_by": f"cichlid-data {__version__}",
@@ -345,6 +346,13 @@ class Catalog:
                 errors += [f"{CLADES_FILE}: {pr}" for pr in Clades.load(self.cfg).validate(self, self.cfg)]
             except ValueError as e:
                 errors.append(str(e))
+        if self.cfg is not None and (self.cfg / "species_tree_master.nwk").is_file():      # optional: required by the Homology part
+            from . import master_tree
+            try:
+                errors += [f"species_tree_master.nwk: {pr}" for pr in
+                           master_tree.check(master_tree.load_master_tree(self.cfg), self.cfg)]
+            except (OSError, ValueError, KeyError) as e:
+                errors.append(f"species_tree_master.nwk: {e}")
         names = [release] if release else list(self.releases)
         for rel in names:
             if rel not in self.releases:

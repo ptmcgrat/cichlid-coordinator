@@ -124,6 +124,12 @@ def _check_part(layout, catalog, root, rel, part, m, fetch, deep, store, say, ve
         except (FileNotFoundError, ValueError) as e:
             probs = [str(e)]
         findings.append(Finding(m, "species_clades.tsv", not probs, "valid" if not probs else "; ".join(probs[:3])))
+        from . import master_tree
+        try:
+            probs = master_tree.check(master_tree.load_master_tree(cfg), cfg)
+        except (OSError, ValueError, KeyError) as e:
+            probs = [str(e)]
+        findings.append(Finding(m, "species_tree_master.nwk", not probs, "valid" if not probs else "; ".join(probs[:3])))
     if catalog.part(rel, part).get("species_tree"):
         name = catalog.part(rel, part)["species_tree"]
         probs = check_species_tree(catalog.species_tree(rel, part),
