@@ -28,7 +28,7 @@ Only project 3 makes orthology calls, for all three methods with one rule. Calli
 - Never download an input yourself.
 - Never copy the species list into this repository. Read it from the catalog.
 
-Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.9,<0.10`, and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API (v0.9.0 did: results are now `Results/<release>/<part>/`).
+Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.12,<0.13` (the minor you have tested), and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API (v0.9.0 did: results are now `Results/<release>/<part>/`). When the coordinator moves to a new minor version, run your tests and `cichlid-data validate` against it, then move your pin to it; `cichlid_data.__version__` is the installed version.
 
 ## 2. What leaves this repository
 
