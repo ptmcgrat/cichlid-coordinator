@@ -29,7 +29,7 @@ Each call carries a confidence level, the methods that support it, and the tree 
 
 ### Further aims
 
-Gene losses in the cichlid lineage (confirmed against the genome sequence); guidance on transferring human and zebrafish annotations given each relationship; consistent gene naming; links to population variation, expression and gene sets.
+Possible gene losses in the cichlid lineage, reported as candidates that need follow-up (nothing is confirmed against the genome sequence); guidance on transferring human and zebrafish annotations given each relationship; consistent gene naming; links to population variation, expression and gene sets.
 
 ## Species
 

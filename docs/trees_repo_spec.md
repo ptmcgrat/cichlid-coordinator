@@ -1,6 +1,6 @@
 # TreeFam and Compara repository: instruction sheet
 
-*For the `cichlid-trees` repository. October 2026. Written against cichlid-coordinator v0.9.0 (releases: results are `Results/<release>/<part>/`). Read first: `project_manifest.md` (why the project exists), `species_final.md` (the species), and `coordinator_spec.md` (the layout, the schemas and the family contract, which this sheet relies on).*
+*For the `cichlid-trees` repository. October 2026. Written against cichlid-coordinator v0.13.0. Read first: `project_manifest.md` (why the project exists), `species_final.md` (the species), and `coordinator_spec.md` (the layout, the schemas and the family contract, which this sheet relies on).*
 
 *What the coordinator knows about this repository comes from its own documents and from the real results folders; it has not seen the repository's code. Where this sheet says "to confirm", the owner of this repository decides, and tells the coordinator if it changes anything here.*
 
@@ -28,7 +28,7 @@ Only project 3 makes orthology calls, for all three methods with one rule. Calli
 - Never download an input yourself.
 - Never copy the species list into this repository. Read it from the catalog.
 
-Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.12,<0.13` (the minor you have tested), and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API (v0.9.0 did: results are now `Results/<release>/<part>/`). When the coordinator moves to a new minor version, run your tests and `cichlid-data validate` against it, then move your pin to it; `cichlid_data.__version__` is the installed version.
+Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.13,<0.14` (the minor you have tested), and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API (v0.9.0 did: results are now `Results/<release>/<part>/`). When the coordinator moves to a new minor version, run your tests and `cichlid-data validate` against it, then move your pin to it; `cichlid_data.__version__` is the installed version.
 
 ## 2. What leaves this repository
 

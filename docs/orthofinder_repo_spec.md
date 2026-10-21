@@ -1,6 +1,6 @@
 # OrthoFinder repository: instruction sheet
 
-*For the `cichlid-orthofinder` repository. October 2026. Written against cichlid-coordinator v0.10.0. Read first: `project_manifest.md` (why the project exists), `species_final.md` (the species), and `coordinator_spec.md` (the layout, the schemas and the family contract, which this sheet relies on).*
+*For the `cichlid-orthofinder` repository. October 2026. Written against cichlid-coordinator v0.13.0. Read first: `project_manifest.md` (why the project exists), `species_final.md` (the species), and `coordinator_spec.md` (the layout, the schemas and the family contract, which this sheet relies on).*
 
 ## 1. Role
 
@@ -19,13 +19,13 @@ It does **not** make orthology calls, name genes, find human or zebrafish orthol
 - Never download an input. The proteomes come from the catalog.
 - Never copy the species list or the species tree into this repository. Read them from the catalog.
 
-Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.12,<0.13` (the minor you have tested), and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API (v0.9.0 did: results are now `Results/<release>/<part>/`). When the coordinator moves to a new minor version, run your tests and `cichlid-data validate` against it, then move your pin to it; `cichlid_data.__version__` is the installed version.
+Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.13,<0.14` (the minor you have tested), and use only its public API (`cichlid_data`) and its command line. Below 1.0.0 a minor version may change the layout API (v0.9.0 did: results are now `Results/<release>/<part>/`). When the coordinator moves to a new minor version, run your tests and `cichlid-data validate` against it, then move your pin to it; `cichlid_data.__version__` is the installed version.
 
 ## 2. Repository layout (suggested)
 
 ```
 cichlid-orthofinder/
-├── pyproject.toml           package cichlid_orthofinder; depends on cichlid-coordinator>=0.12,<0.13
+├── pyproject.toml           package cichlid_orthofinder; depends on cichlid-coordinator>=0.13,<0.14
 ├── src/cichlid_orthofinder/
 │   ├── run.py               prepare the input folder, run OrthoFinder, record the settings
 │   ├── convert.py           orthogroups and gene trees -> assign/ and families/

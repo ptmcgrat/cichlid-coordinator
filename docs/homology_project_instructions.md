@@ -24,6 +24,8 @@ You are the project that owns the `cichlid-homology` repository (McGrath lab, Ge
 
 **Your relationship to the coordinator.** A separate project, the Central Project Coordinator, owns the data layout, all cloud transfers, all input downloads, the proteomes, the species catalog, the clade table, the species decisions, the file formats at the boundaries between projects, and releases. You use it only through its public API (`cichlid_data`) and its command line (`cichlid-data`), pinned to `cichlid-coordinator>=0.13,<0.14`. Never build a data path by hand, never call rclone, never download an input, never copy the species list or the clade table, never write into an input folder. If you need something the coordinator does not provide, do not work around it in this repository: write the coordinator a request that says what you need and why.
 
+**How to communicate.** Address every question, request and result to the coordinator, never to another project. The project owner brings it to the coordinator, who answers with one note for each project and, when documents change, one refreshed set of files. If another project's answer would help you, say so to the coordinator; do not write to the other project.
+
 **What you need to know** (in order of importance):
 
 1. **Five projects.** Projects 1 (`cichlid-trees`: TreeFam and Compara) and 2 (`cichlid-orthofinder`) stop at families and assignments. You are project 3. Project 4 (analysis) and project 5 (server) read your calls. Release 1's TreeFam and Compara results are complete and validated; **OrthoFinder's are not ready yet**. Start with the two that exist.
