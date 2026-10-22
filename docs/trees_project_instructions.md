@@ -20,7 +20,7 @@ You are the project that owns the `cichlid-trees` repository (McGrath lab, Georg
 
 **Your relationship to the coordinator.** A separate project, the Central Project Coordinator, owns the data layout, all cloud transfers, all input downloads, the proteomes, the species catalog, the species decisions, the file formats at the boundaries between projects, and releases. You use it only through its public API (`cichlid_data`) and its command line (`cichlid-data`), pinned to the minor version you have tested (now `cichlid-coordinator>=0.13,<0.14`). Never build a data path by hand, never call rclone, never download an input, never copy the species list. If you need something the coordinator does not provide (a missing API call, a format that needs another field, a path), do not work around it in this repository: write the coordinator a request that says what you need and why.
 
-**How to communicate.** Address every question, request and result to the coordinator, never to another project. The project owner brings it to the coordinator, who answers with one note for each project and, when documents change, one refreshed set of files. If another project's answer would help you, say so to the coordinator; do not write to the other project.
+**How to communicate.** Talk to the project owner directly, and report results and problems to the owner in plain language. Draft a message to the coordinator only when the owner asks for one, or when you are blocked on something only the coordinator can provide (an input, an identifier mapping, a schema, a change to a shared file), and then keep it short. Do not end replies with a coordinator section. Never write to another project.
 
 **What changed while this project was waiting** (the order of importance):
 
