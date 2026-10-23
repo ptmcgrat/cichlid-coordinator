@@ -1,6 +1,6 @@
 # Homology decider repository: instruction sheet
 
-*For the `cichlid-homology` repository (the name is proposed). October 2026. Written against cichlid-coordinator v0.13.0. Read first: `project_manifest.md` (why the resource exists), `species_final.md` (the species), `coordinator_spec.md` (layout, schemas, family contract, releases, the clade table), `trees_repo_spec.md` and `orthofinder_repo_spec.md` (what the two tree projects write), and the TreeFam project's `docs/OUTPUTS.md` (the per-gene tables it keeps).*
+*For the `cichlid-homology` repository (the name is proposed). October 2026. Written against cichlid-coordinator v0.14.1. Read first: `project_manifest.md` (why the resource exists), `species_final.md` (the species), `coordinator_spec.md` (layout, schemas, family contract, releases, the clade table), `trees_repo_spec.md` and `orthofinder_repo_spec.md` (what the two tree projects write), and the TreeFam project's `docs/OUTPUTS.md` (the per-gene tables it keeps).*
 
 *The coordinator wrote this sheet from the project owner's goals and from what the other projects produce. Where it says "to settle in the pilot", the owner decides after the first results, and tells the coordinator if it changes anything here.*
 
@@ -33,13 +33,13 @@ It does **not** build trees or alignments (projects 1 and 2), download inputs, c
 - Never download an input, and never copy the species list, the clade table or a species tree into this repository. Read them from the coordinator.
 - Never write into an input folder.
 
-Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.13,<0.14`, and use only its public API (`cichlid_data`) and its command line. If you need something it does not provide, write the coordinator a request that says what and why.
+Depend on the coordinator with a range pinned to one minor version, for example `cichlid-coordinator>=0.14,<0.15`, and use only its public API (`cichlid_data`) and its command line. If you need something it does not provide, write the coordinator a request that says what and why.
 
 ## 2. Repository layout (suggested)
 
 ```
 cichlid-homology/
-├── pyproject.toml           package cichlid_homology; depends on cichlid-coordinator>=0.13,<0.14
+├── pyproject.toml           package cichlid_homology; depends on cichlid-coordinator>=0.14,<0.15
 ├── src/cichlid_homology/
 │   ├── read.py              the families of each method, in one common in-memory form
 │   ├── rooting.py           rooting a family tree (section 5)
