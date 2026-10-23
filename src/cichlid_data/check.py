@@ -31,11 +31,14 @@ NAMES = {"Inputs/Annotations/Legacy2018": "dir"}
 # the files that say which species each reference leaf of a TreeFam or Compara tree belongs to
 LEAF_SPECIES = {"Inputs/Families/TreeFam9/protein_to_species.txt": "file",
                 "Inputs/Families/Compara116/prepared/protein_to_species.txt": "file"}
+# the names of the reference proteins (human, mouse, zebrafish) of TreeFam and Compara: a frozen snapshot
+REFERENCE_NAMES = {"Inputs/Annotations/ReferenceNames/TreeFam": "dir", "Inputs/Annotations/ReferenceNames/Compara": "dir"}
 # by part: what a part needs besides the proteomes of its species. The 2018 name tables are for the
 # orthology calls (reference gene names), and the leaf-to-species files for dating duplications: the Homology part's.
-REQUIREMENTS = {"TreeFam": TREEFAM, "Compara": COMPARA, "OrthoFinder": {}, "Homology": {**NAMES, **LEAF_SPECIES}, "Analysis": {}}
+REQUIREMENTS = {"TreeFam": TREEFAM, "Compara": COMPARA, "OrthoFinder": {}, "Homology": {**NAMES, **LEAF_SPECIES, **REFERENCE_NAMES}, "Analysis": {}}
 # resources whose source record is verified (the folder holding source.json)
-RECORDED = {"Inputs/Families/TreeFam9", "Inputs/Families/Compara116", "Inputs/Annotations/Legacy2018"}
+RECORDED = {"Inputs/Families/TreeFam9", "Inputs/Families/Compara116", "Inputs/Annotations/Legacy2018",
+            "Inputs/Annotations/ReferenceNames/TreeFam", "Inputs/Annotations/ReferenceNames/Compara"}
 
 
 @dataclass
@@ -148,6 +151,20 @@ def _check_part(layout, catalog, root, rel, part, m, fetch, deep, store, say, ve
         except OSError as e:
             ok, detail = False, f"{e} (run `cichlid-data check --fetch`)"
         findings.append(Finding(m, "reference leaf species in the master tree", ok, detail))
+        from .reference_names import FILE as RN_FILE, coverage, table_path, validate_reference_names
+        try:                                             # the names tables: valid, and a row for every human and zebrafish protein
+            notes, ok = [], True
+            for p in ("TreeFam", "Compara"):
+                bad = validate_reference_names(table_path(layout, p))
+                cov = coverage(layout, p)
+                short = {s: c for s, c in cov.items() if s != "mus_musculus" and c[1] < c[0]}
+                ok = ok and not bad and not short
+                notes.append(f"{p}: " + ("; ".join(bad[:2]) if bad else
+                             ", ".join(f"{s.split('_')[0]} {c[1]} of {c[0]}" for s, c in cov.items() if s != "mus_musculus")))
+            detail = "valid; proteins with a row, " + " | ".join(notes) if ok else " | ".join(notes)
+        except (OSError, ValueError, KeyError) as e:
+            ok, detail = False, f"{e} (run `cichlid-data check --fetch`)"
+        findings.append(Finding(m, f"{RN_FILE} of TreeFam and Compara", ok, detail))
     if catalog.part(rel, part).get("species_tree"):
         name = catalog.part(rel, part)["species_tree"]
         probs = check_species_tree(catalog.species_tree(rel, part),

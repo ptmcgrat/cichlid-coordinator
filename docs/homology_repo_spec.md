@@ -8,14 +8,19 @@
 
 This repository makes **every orthology call** of the resource. It reads the families of the three methods (TreeFam, Compara, OrthoFinder) for a release and, for each **focal species** (the release's delivered species; release 1: *M. zebra* and *A. calliptera*), answers, gene by gene:
 
-1. **Potential fusions:** which genes may be two genes merged.
-2. **Very conserved proteins missing from the annotation:** a report of candidates only. Nothing is searched in the genome (the coordinator provides no genome sequence, and confirming them is not a goal).
-3. **The closest human homolog, and the relationship:** one-to-one ortholog, one-to-two, and so on, or paralog.
-4. **The closest zebrafish homolog, and the relationship:** the same.
-5. **For genes with a one-to-one human ortholog:** the overall pattern in the teleosts. Are they mostly one-to-one?
-6. **For genes with a one-to-two human ortholog:** do the copies look like **retained ohnologs** (from the teleost-specific genome duplication), or like **recent duplications** that belong at some level of the clade ladder?
-7. **For paralogs:** at which level of the ladder did they arise?
-8. **One decision per question across the three methods,** with every disagreement recorded.
+**Aim A, function inference.**
+- **A1. The closest human gene, and the relationship:** one-to-one ortholog, one-to-two, and so on, or paralog.
+- **A2. The closest zebrafish gene, and the relationship:** the same.
+
+All three methods answer, **with equal standing**: none is preferred over another. A method whose family has no gene of the reference species **abstains**; that is not a disagreement. Every competing call is kept and listed for review.
+
+**Aim B, the family in a teleost context.**
+- **B1.** One copy kept (a duplicate lost early), both copies kept, or a later duplicate unrelated to the teleost genome duplication. Read it from the **copy number per teleost species** in the smallest clade holding the gene and human (or, when human is absent, another non-teleost anchor such as the gar), **not** from the position of single branches. Compara and OrthoFinder answer; TreeFam answers only as a fallback, is marked low resolution, and never overrules the other two.
+- **B2.** For a later duplicate: how many cichlid species carry it, and where they meet in the master species tree. OrthoFinder is the authority; TreeFam and Compara give counts only, because place mode cannot order our own genes.
+
+**Kept, at low priority:** potential fusions, and a report of very conserved proteins missing from the annotation (candidates only; nothing is searched in the genome, since the coordinator provides no genome sequence and confirming them is not a goal).
+
+**Not done:** no comparison with the 2018 results (the *M. zebra* reference differs too much to link genes), and no dating of paralogs on the ladder as a goal of its own (the ladder is still used by B2). **Gene symbols** are not needed for the calls: they are for comparing methods and for checks.
 
 **Mouse is not in scope for release 1:** human and zebrafish are the only reference species for the calls. Mouse stays a leaf in the trees of all three methods (as one of the vertebrate outgroups), but nothing is called against it and it needs no identifier mapping.
 
@@ -57,8 +62,8 @@ cichlid-homology/
 | The clade ladder | `Clades.load()`: `level(name)`, `common_level(names)`, `within(level)`, `lineage(name)`. Seven nested levels; `cyclostome` is **disputed** |
 | The OrthoFinder species tree | `Catalog.load(layout).species_tree("v1", "OrthoFinder")` |
 | The master species tree, for rooting | `cichlid_data.master_tree.load_master_tree()`: one rooted tree over the 154 species that are leaves in any method's trees (the agreed OrthoFinder tree is its backbone). `master_tree.canonical(name)` gives a species' leaf name (TreeFam's mapping file and its tree spell a few species differently) |
-| Mappings of human and zebrafish identifiers across methods | **To come from the coordinator** (section 4). Not yet available |
-| Reference gene names | the 2018 name tables, `Inputs/Annotations/Legacy2018` (a requirement of the Homology part) |
+| The names and official IDs of the reference proteins (human, zebrafish) | `ReferenceNames.load(get_layout(), part)` for `TreeFam` and `Compara`: `get(protein)` returns the gene, symbol, **official ID (HGNC or ZFIN)**, `symbol_source` and a `status` (`current`, `grch37`, `legacy_id`, `replaced`, `legacy_symbol`, `unmapped`); `reliable` is true for the first three. A frozen snapshot of the earlier pipeline's stage 6a, so the names are as of the day it was made. For OrthoFinder there is no table: its human and zebrafish genes are our own proteomes, with the symbol and NCBI gene ID in the genes tables; their HGNC and ZFIN IDs are a later addition |
+| The 2018 name tables | `Inputs/Annotations/Legacy2018` is still a requirement of the Homology part (the reference names were built partly from it), but this repository does not read it |
 | Gene positions, for an optional synteny check | `layout.genes_table(prefix)` |
 
 Run `cichlid-data check --release v1 --part Homology` before a run: it verifies the name tables and the clade table. The TreeFam and Compara results of release 1 are complete; **OrthoFinder's are not yet**, so start with the two that exist.
@@ -68,7 +73,7 @@ Run `cichlid-data check --release v1 --part Homology` before a run: it verifies 
 - **TreeFam and Compara, place mode.** Each focal gene is placed independently on a fixed reference tree. That gives its relationship to the reference genes (human, zebrafish and the rest) and the number of focal copies on a branch, but **it cannot order focal genes among themselves**: genes on one branch form a multifurcation. Only the de novo families (in release 1: 402 in TreeFam, 294 in Compara) are full trees of the focal genes.
 - **OrthoFinder** builds a full tree of all 35 species, every cichlid included. It is the **authority for recent duplications among our own genes.** Its family trees are expected to be unrooted IQ-TREE trees with branch lengths and **no support values**, one per orthogroup (the choice of tree is decided with the owner after its pilot).
 - **Species coverage differs.** Teleost reference leaves: 8 in TreeFam, 37 in the pruned Compara trees (from the panel), 26 in OrthoFinder. The non-teleost bony fishes that anchor the teleost-specific duplication (spotted gar, reedfish, and bowfin if added): in Compara and OrthoFinder, **not in TreeFam**. Amphioxus: OrthoFinder only. Sea lamprey: TreeFam and Compara only.
-- **Identifiers differ.** Human and zebrafish are Ensembl release-69-era proteins in TreeFam, current Ensembl proteins in Compara, and RefSeq genes in OrthoFinder. To compare methods, the closest human or zebrafish homolog must be mapped to common identifiers (symbols, Ensembl and NCBI gene IDs). The coordinator will provide the mappings as inputs (the TreeFam archive lists a file mapping its Ensembl IDs to RefSeq and UniProt; Compara needs an Ensembl-to-NCBI mapping for human and zebrafish). Until then, compare by gene symbol and say so.
+- **Identifiers differ across methods:** Ensembl release-69-era proteins in TreeFam (many retired), current Ensembl proteins in Compara, RefSeq genes in OrthoFinder. The common key is the **official ID** (HGNC for human, ZFIN for zebrafish), from `ReferenceNames` for TreeFam and Compara. Compara's proteins are current, so nearly all resolve at once; TreeFam's older ones are resolved by several routes (in release 1: for zebrafish, 26,558 current, 11,124 by legacy ID and 4,417 unmapped of 42,146; for human, 79,001 current, 10,555 by GRCh37, 2,152 by legacy ID and 1,391 unmapped of 93,165), so **a call that rests on a `replaced`, `legacy_symbol` or `unmapped` protein is lower confidence, or the method abstains**. For OrthoFinder, compare by symbol and say so until its IDs are added.
 - **Some reference species are also project species** (release 1):
 
 | Method | Reference species that are also project species | Treatment in the trees |
@@ -90,23 +95,24 @@ Run `cichlid-data check --release v1 --part Homology` before a run: it verifies 
 - **Shadowed species are ignored for duplication calls.** A reference leaf whose species is also a project species (the table in section 4; `LeafSpecies.shadowed()`) is dropped before species overlap is computed, and our placed genes stand for the species. Ensembl's copy and our RefSeq gene are two annotations of the same genome, so counting them as shared species would call a duplication at every such pair. This is the rule the coordinator already applied to the five cichlids (role `validation`). Record it in `run.json`; the owner can overrule it.
 - **Rooting:** **not midpoint rooting.** The TreeFam and Compara trees are unrooted on purpose. Root each tree by reconciling it with a species tree (the root that gives the fewest duplications), using the master species tree (`master_tree.load_master_tree()`). OrthoFinder's trees may already be rooted (read `done.json`).
 - **Dating a duplication:** the **common level** of the species below the duplication node, `Clades.common_level(species)`. Two cichlids meet at `cichlid`, a cichlid and a zebrafish at `teleost`, a cichlid and a human at `gnathostome`.
-- **Retained ohnolog pair (teleost-specific):** both copies present across several teleost levels, with the non-teleost outgroup (gar, reedfish) holding one copy. **Recent duplication:** the second copy confined to one level or one species. Gene positions allow an optional synteny check for chromosome-level genomes.
+- **Retained ohnolog pair (teleost-specific; Aim B1):** both copies present across several teleost levels, with the non-teleost outgroup (gar, reedfish) holding one copy. **Recent duplication:** the second copy confined to one level or one species. Gene positions allow an optional synteny check for chromosome-level genomes.
+- **B2, where cichlid carriers meet:** the last common ancestor of the carrying species in the master species tree. The coordinator's `master_tree` has no public function for it: compute it from the tree (`newick.Node`: `iter`, `leaves`, `parent`). `Clades.common_level` gives only the ladder level, which inside the cichlids is always `cichlid`. *Amphilophus* and *Pundamilia* (Compara reference species) sit unresolved at the cichlid node, so for them the answer is the whole cichlid clade.
 - **Cyclostomes are disputed.** Do not date or conclude anything by the `cyclostome` level; flag it.
 - **Fusions:** the union of the methods' evidence, kept as evidence and not collapsed: the TreeFam and Compara flags with the partner family and region, and, for OrthoFinder, a length outlier within the orthogroup. These are candidates, not proof (*Esur* shows how annotation artifacts inflate them). `possible_fusion` is a lower-ranked family with coverage of at least 0.5 whose region on the gene overlaps the best family's by at most 20% of the shorter; the partner is the highest-scoring such family. The four `fusion_partner*` columns are filled if and only if `possible_fusion` is set (guaranteed by project 1's code and a test). `low_family_coverage` (best-family coverage below 0.5) means a different coverage in each method (TreeFam: of the HMM; Compara: of the best reference protein), so compare it only within a method.
 - **Missing annotations:** families that are conserved across the other cichlids and teleosts but have no gene in the focal species. A report; no confirmation.
-- **The teleost pattern of a one-to-one gene:** copies per teleost species and per level; the threshold for "mostly one-to-one" is to settle in the pilot. An absence may be an annotation gap, so use thresholds, not single species.
+- **B1, the copy number:** copies per teleost species in the smallest clade holding the gene and human (or the gar, when human is absent), read as a pattern across species and levels, not from single branches. The thresholds are to settle in the pilot. An absence may be an annotation gap, so use thresholds, not single species.
 
 ## 6. Combining the three methods
 
 Disagreement is data, not noise.
 
 1. **Same footing.** Each method fills the same per-gene call table (family, closest human and zebrafish gene with common identifiers, relationship, birth level, support), with a reason code for each call.
-2. **Prefer the method built for the question.** Deep orthology to human and zebrafish: TreeFam and Compara, with OrthoFinder as a check. Recent duplications among our genes: OrthoFinder (or a de novo family). Teleost outgroup tests: Compara and OrthoFinder.
+2. **Equal standing for A1 and A2.** No method is preferred over another; a method whose family has no gene of the reference species abstains, which is not a disagreement. For B1, Compara and OrthoFinder answer and TreeFam only as a low-resolution fallback that never overrules them; for B2, OrthoFinder is the authority and the other two give counts only.
 3. **Label the agreement** per question: `agree`, `majority`, `split`, or `single` (only one method could answer), and why: a different family, a different closest gene, a different relationship, or low support.
 4. **Confidence** from the placement support, de novo status, family coverage and, where present, branch support.
 5. **Independent tie-breakers:** alignment identity from `combined.aln`, and optionally conserved synteny.
 6. **Keep every call.** The final call is stored with its status and the competing calls, and a **review list** collects the `split` cases.
-7. **Calibrate** on a small benchmark of genes with known histories, to learn how often each method is right and to set the rules. The rules are code, with tests, and are versioned with the release.
+7. **Calibrate later, if a benchmark can be identified.** A benchmark of genes with known histories is hard to generate; it is left to this project and implemented only if such genes can be found, with a source and citation for each. The rules are code, with tests, and are versioned with the release.
 
 ## 7. Outputs
 
@@ -115,7 +121,7 @@ Under `get_layout().results("v1", "Homology")`:
 | Path | Content |
 |---|---|
 | `run.json` | the run record: `release`, `method` (`Homology`), `method_version` (the version of the rules), `parameters` (every threshold, the rooting rule, the species-overlap setting), `started`, `finished`, `coordinator_version` (`cichlid_data.__version__`), `catalog_md5` (`Catalog.load(layout).md5()`), `proteomes_md5` (`Catalog.load(layout).proteomes_md5(species)`), `species`. Write it with `schemas.write_run` |
-| the call tables | **their schema is designed with the coordinator after the pilot.** Until then write them under `native/calls/`. The existing `orthologs.tsv` schema has TreeFam-specific columns and will be replaced by one built for these eight questions |
+| the call tables | **their schema is designed with the coordinator after the pilot.** Until then write them under `native/calls/`. The existing `orthologs.tsv` schema has TreeFam-specific columns and will be replaced by one built for these questions |
 | a review list | the `split` cases, under `native/review/` |
 
 ## 8. Pilot first
@@ -131,7 +137,7 @@ cichlid-data validate "$R"/run.json
 cichlid-data push 'results/v1/Homology/*' --dry-run         # then without --dry-run
 ```
 
-The tests of this repository run offline on small constructed trees and must cover each case: a one-to-one ortholog, a one-to-two pair that is a retained teleost ohnolog, a recent duplication, a paralog, a fusion, a tie between methods, and an unrooted tree. There are no earlier results to compare with: the verification is the offline tests, the benchmark, `cichlid-data validate`, and a `run.json` that records the rules' version and every threshold.
+The tests of this repository run offline on small constructed trees and must cover each case: a one-to-one ortholog, a one-to-two pair that is a retained teleost ohnolog, a recent duplication, a paralog, a fusion, a tie between methods, and an unrooted tree. There are no earlier results to compare with: the verification is the offline tests, a benchmark if one can be identified, `cichlid-data validate`, and a `run.json` that records the rules' version and every threshold.
 
 ## 10. What this repository must not do
 
@@ -147,6 +153,6 @@ The tests of this repository run offline on small constructed trees and must cov
 2. `cichlid-data check --release v1 --part Homology` passes.
 3. `run.json` records the rules' version, every threshold and the rooting rule, and passes `cichlid-data validate`.
 4. Every call has a reason code, and every disagreement between methods is recorded with the competing calls and listed for review.
-5. The benchmark shows, for each question, how often each method agrees with the known answer.
+5. If a benchmark of genes with known histories could be identified, it shows, for each question, how often each method agrees with the known answer.
 6. The pilot's findings, and the schema of the call tables, are written down in `docs/` and agreed with the coordinator before the full run.
 7. No other path, species list, clade table or cloud call appears anywhere in the code.

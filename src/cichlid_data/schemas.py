@@ -6,7 +6,8 @@
     problems = schemas.validate(path)               # the kind is inferred from the file name
 
 Kinds: genes (<prefix>.genes.tsv), assign (<prefix>.assign.tsv), orthologs (<prefix>.orthologs.tsv),
-proteome (<prefix>.faa), run (run.json), residue_map (residue_map.tsv), family (a families/<family>/ folder),
+proteome (<prefix>.faa), run (run.json), residue_map (residue_map.tsv), reference_names (reference_names.tsv),
+family (a families/<family>/ folder),
 families (a whole families/ folder: every family in it).
 
 Family IDs: letters, digits, '.', '_' and '-', starting with a letter or digit (TF101001, C116_012345,
@@ -580,6 +581,8 @@ def kind_of(path):
         return "run"
     if name == RESIDUE_MAP_FILE:
         return "residue_map"
+    if name == "reference_names.tsv":
+        return "reference_names"
     return None
 
 
@@ -602,6 +605,9 @@ def validate(path, kind=None, prefix=None, prefixes=None):
         return validate_run(path)
     if kind == "residue_map":
         return validate_residue_map(path)
+    if kind == "reference_names":
+        from .reference_names import validate_reference_names
+        return validate_reference_names(path)
     if kind == "family":
         return validate_family(path, prefixes)
     if kind == "families":

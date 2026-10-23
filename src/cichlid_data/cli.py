@@ -118,7 +118,7 @@ def main(argv=None, backend=None, settings=None):
     p.add_argument("--deep", action="store_true", help="also compare checksums with source records")
     p = sub.add_parser("validate", help="check files against their schemas")
     p.add_argument("paths", nargs="+")
-    p.add_argument("--kind", choices=["genes", "assign", "orthologs", "proteome", "run", "residue_map", "family", "families"])
+    p.add_argument("--kind", choices=["genes", "assign", "orthologs", "proteome", "run", "residue_map", "reference_names", "family", "families"])
     p.add_argument("--prefix")
     p = sub.add_parser("catalog", help="the species catalog")
     p.add_argument("action", choices=["build", "show", "missing", "validate", "tree"])

@@ -116,4 +116,22 @@ name = "The 2018 resource's own files: protein sets, combined protein file and T
 type = "project"
 citation = "Ramakrishnan Varadarajan A, Mopuri R, Streelman JT, McGrath PT (2018) Genome-wide protein phylogenies for four African cichlid species. BMC Evol Biol 18:1"
 
+[[source]]
+path = "Inputs/Annotations/ReferenceNames/TreeFam"
+name = "Names of TreeFam 9's human, mouse and zebrafish reference proteins (HGNC, MGI, ZFIN)"
+type = "derived"
+version = "TreeFam 9"
+retrieved = "to confirm: the dates of the authority files in the folder (the snapshot was made for the 2026 rebuild)"
+licence = "to confirm: the data licences of HGNC, ZFIN and MGI, and of the Ensembl REST output"
+citation = "to confirm"
+notes = "A frozen snapshot made by the earlier pipeline (stage6a_names.py), copied here from Rebuild2026/names/ without the Ensembl REST cache, which stays there. It gives each reference protein of TreeFam 9 (Ensembl protein IDs from about 2013, many retired) a current gene, symbol and official ID (HGNC, MGI or ZFIN) by up to five routes (Ensembl REST, frozen GRCh37 for human, the 2018 tables in Legacy2018, Ensembl's ID history, the 2018 symbol); the status column says which worked. Authority files used: the HGNC complete set, ZFIN ensembl_1_to_1.txt, MGI MRK_ENSEMBL.rpt, with ZFIN gene.txt and uniprot.txt and MGI MGI_Gene_Model_Coord.rpt and MRK_SwissProt_TrEMBL.rpt for the 2018 route. The names depend on the day they were fetched: the authority files in the folder carry their dates."
 
+[[source]]
+path = "Inputs/Annotations/ReferenceNames/Compara"
+name = "Names of Compara 116's human, mouse and zebrafish reference proteins (HGNC, MGI, ZFIN)"
+type = "derived"
+version = "Ensembl 116"
+retrieved = "to confirm: the dates of the authority files in the folder (the snapshot was made for the 2026 rebuild)"
+licence = "to confirm: the data licences of HGNC, ZFIN and MGI, and of the Ensembl REST output"
+citation = "to confirm"
+notes = "A frozen snapshot made by the earlier pipeline (stage6a_names.py), copied here from Compara2026/names/ without the Ensembl REST cache, which stays there. It gives each reference protein of Compara 116 (current Ensembl IDs, so nearly every row is current) a current gene, symbol and official ID (HGNC, MGI or ZFIN) by up to five routes (Ensembl REST, frozen GRCh37 for human, the 2018 tables in Legacy2018, Ensembl's ID history, the 2018 symbol); the status column says which worked. Authority files used: the HGNC complete set, ZFIN ensembl_1_to_1.txt, MGI MRK_ENSEMBL.rpt, with ZFIN gene.txt and uniprot.txt and MGI MGI_Gene_Model_Coord.rpt and MRK_SwissProt_TrEMBL.rpt for the 2018 route. The names depend on the day they were fetched: the authority files in the folder carry their dates."

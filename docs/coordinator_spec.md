@@ -1,6 +1,6 @@
 # Coordinator repository: instruction sheet
 
-*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.13.0.*
+*For the Central Project Coordinator workspace and repository (`cichlid-coordinator`). October 2026. Current at v0.14.0.*
 
 ## 1. Role
 
@@ -82,7 +82,7 @@ cichlid-coordinator/
 │   │   ├── TreeFam9/                  hmm/, trees/<family>.aln|.nhx, protein_to_species.txt, source.json
 │   │   └── Compara116/                dumps/, prepared/ (trees/, search_db.fa, members.tsv,
 │   │                                  protein_to_species.txt, family_audit.tsv), source.json
-│   ├── Annotations/                   GO/, PANTHER/, Ensembl_names/, Legacy2018/   (each with source.json)
+│   ├── Annotations/                   GO/, PANTHER/, Ensembl_names/, Legacy2018/, ReferenceNames/{TreeFam,Compara}/   (each with source.json)
 │   ├── Expression/                    HPA/, Zebrahub/, Daniocell/, Bgee/, Brawand/, raw/   (each with source.json)
 │   └── Populations/Blumer2025/        VCFs, tables, reference/
 ├── Results/
@@ -206,6 +206,12 @@ Commands: `cichlid-data catalog build | show | missing | validate | tree`, with 
 `LeafSpecies.load(layout, part)` answers "which species is this leaf of a family tree?" for `TreeFam`, `Compara` or `OrthoFinder`. The reference leaves of TreeFam and Compara come from the part's mapping file (`Inputs/Families/TreeFam9/protein_to_species.txt`, `Inputs/Families/Compara116/prepared/protein_to_species.txt`: one `protein<TAB>species` line each); our genes are `<prefix>_<id>` with a catalog prefix; the reference mapping is looked up first. Names are the master tree's (`master_tree.canonical`). `species(leaf)` returns a name or `None`; `of_leaves(leaves)` returns `{leaf: species}` and raises `KeyError` naming the unknown ones; `is_project_gene(leaf)`; `reference_species()`; `only=` keeps just some leaves of the large file. A malformed line, or a protein given two species, is an error.
 
 **Shadowed species.** `shadowed()` returns the reference species that are also project species. A tree then holds Ensembl's reference leaves and our placed genes of the same species, which species overlap would call duplications, so a consumer ignores the reference leaves of these species when calling them. Release 1: TreeFam shadows `gasterosteus_aculeatus` and `oreochromis_niloticus`; Compara shadows `betta_splendens` and `gasterosteus_aculeatus` (its five `validation` cichlids were removed from the trees when prepared); OrthoFinder shadows none. Tests keep this in step with the Compara panel and TreeFam's species tree. For the Homology part, `check` also requires the two mapping files and confirms that every species they name is a leaf of the master tree.
+
+### Reference names (`reference_names.py`)
+
+`Inputs/Annotations/ReferenceNames/<part>/reference_names.tsv`, for `TreeFam` and `Compara`, gives each human, mouse and zebrafish reference protein of the part's mapping file a current gene, symbol and **official ID** (HGNC, MGI or ZFIN). It is a **frozen snapshot made by the earlier pipeline** (its stage 6a), copied in from `Rebuild2026/names/` and `Compara2026/names/` without the Ensembl REST cache; the names are as of the day it was made, and the authority files in each folder carry their dates. Columns: `protein_id, species, status, route, mapped_protein, transcript_id, gene_id, symbol, symbol_source, official_id, description`. TreeFam 9's Ensembl IDs date from about 2013 and many are retired, so each protein is resolved by up to five routes, in order, and `status` says which worked: `current` (Ensembl REST), `grch37` (human only, the frozen GRCh37 service), `legacy_id` (the 2018 tables: an HGNC, ZFIN or MGI accession, a UniProt accession or an NCBI gene ID, matched to the authority's current record), `replaced` (Ensembl's ID history), `legacy_symbol` (the 2018 symbol, unverified), `unmapped`. The symbol comes from the nomenclature authority; only when it has no entry is Ensembl's display name used (`symbol_source`). Release 1: TreeFam human 97.9% named (79,001 of 93,165 `current`), mouse 93.9%, zebrafish 88.2% (26,558 `current`, 11,124 `legacy_id`, 4,417 `unmapped` of 42,146); Compara all `current`, human 99.5% named, mouse 99.7%, zebrafish 94.4%.
+
+`ReferenceNames.load(layout, part)` reads one table: `get(protein)` returns a `Record` (or `None`), with `reliable` true for `current`, `grch37` and `legacy_id` (a judgement taken from the earlier pipeline's own comments: it tried the 2018 tables before the ID history because a replacement can occasionally point to a different gene) and `named`; `status_counts(species)`, `proteins(species)`, `only=` to keep some proteins. `validate_reference_names` checks the header, repeated proteins, species and status values, that an official ID has the pattern of its species (`HGNC:n`, `MGI:n`, `ZDB-...-nnnnnn-n`), and that a mapped protein has a gene. `check` requires both folders for the Homology part, validates the tables, and checks that **every human and zebrafish protein of the part's mapping file has a row**. OrthoFinder has no such table (its reference genes are our own proteomes, with symbols in the genes tables); their HGNC and ZFIN IDs are a later addition.
 
 ### SourceRecord (`provenance.py`)
 
