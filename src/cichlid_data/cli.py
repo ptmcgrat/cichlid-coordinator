@@ -243,7 +243,7 @@ def main(argv=None, backend=None, settings=None):
                 problems = [str(e)]
             failed += bool(problems)
             print(f"{path}: " + ("ok" if not problems else f"{len(problems)} problem(s)"))
-            for pr in problems[:10]:
+            for pr in problems[:30]:
                 print(f"    {pr}")
         if failed:
             sys.exit(f"{failed} of {len(args.paths)} failed validation")

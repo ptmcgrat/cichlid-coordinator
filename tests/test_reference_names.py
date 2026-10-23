@@ -62,7 +62,9 @@ class TestTheConstants(unittest.TestCase):
         self.assertEqual(SPECIES, ("homo_sapiens", "mus_musculus", "danio_rerio"))
         self.assertEqual(PARTS, ("TreeFam", "Compara"))
         self.assertEqual(len(HEADER), 11)
-        self.assertTrue(set(RELIABLE) <= set(HAS_GENE) <= set(STATUSES))
+        self.assertEqual(set(HAS_GENE), {"current", "grch37", "replaced"})           # resolved through Ensembl: a gene
+        self.assertTrue(set(RELIABLE) <= set(STATUSES))
+        self.assertNotIn("legacy_id", HAS_GENE)                                       # an authority record may have no Ensembl gene
 
     def test_the_folders_are_recorded_and_required_for_the_homology_part(self):
         for part in PARTS:
@@ -161,6 +163,7 @@ class TestValidation(Base):
             (HEAD + row("A", "mus_musculus", "current", gene="G", official="MGI:abc"), "is not an official ID of mus_musculus"),
             (HEAD + row("A", "homo_sapiens", "current"), "A has status current but no gene_id"),
             (HEAD + row("A", "homo_sapiens", "replaced"), "has status replaced but no gene_id"),
+            (HEAD + row("A", "homo_sapiens", "legacy_id"), "has status legacy_id but neither a gene_id nor an official_id"),
         ]
         for text, want in cases:
             probs = self.problems(text)
@@ -169,14 +172,35 @@ class TestValidation(Base):
     def test_what_is_allowed(self):
         # unmapped and legacy_symbol rows need no gene; an empty official ID is fine; mouse and every ZFIN prefix are accepted
         ok = (HEAD + row("A", "homo_sapiens", "unmapped") + row("B", "homo_sapiens", "legacy_symbol", symbol="X")
+              # found in the real TreeFam table: resolved through the 2018 tables to an authority record with no Ensembl gene
+              + row("E", "homo_sapiens", "legacy_id", "accession", symbol="PSEUDO1", source="HGNC", official="HGNC:12345")
               + row("C", "mus_musculus", "current", gene="G", official="MGI:12345")
               + row("D", "danio_rerio", "current", gene="G", official="ZDB-LINCRNAG-000000-12"))
         self.assertEqual(self.problems(ok), [])
 
-    def test_stops_after_many_problems(self):
-        probs = self.problems(HEAD + "".join(row(f"P{i}", "homo_sapiens", "fine") for i in range(60)))
-        self.assertEqual(len(probs), schemas.MAX_PROBLEMS + 1)
-        self.assertIn("stopping after too many problems", probs[-1])
+    def test_one_run_shows_every_kind_of_problem_with_a_count(self):
+        """The whole file is read: 25 identical problems used to hide every other kind behind them."""
+        text = (HEAD + "".join(row(f"S{i}", "homo_sapiens", "fine") for i in range(60))
+                + "".join(row(f"G{i}", "gallus_gallus", "current", gene="G") for i in range(40))
+                + "".join(row(f"L{i}", "homo_sapiens", "legacy_id") for i in range(30))
+                + row("ok1", "homo_sapiens", "current", gene="G"))
+        probs = self.problems(text)
+        self.assertEqual(len(probs), 9)                                               # 3 kinds: 2 examples and a count each
+        self.assertIn("line 2: status 'fine' must be one of", probs[0])
+        self.assertIn("... and 58 more rows with this problem (unknown status); 60 in all", probs[2])
+        self.assertIn("... and 38 more rows with this problem (unknown species); 40 in all", probs[5])
+        self.assertIn("... and 28 more rows with this problem (legacy_id without a gene or an official ID); 30 in all", probs[8])
+
+    def test_different_kinds_stay_separate_so_a_rare_one_is_not_hidden(self):
+        text = (HEAD + "".join(row(f"C{i}", "homo_sapiens", "current") for i in range(3)) + row("R1", "homo_sapiens", "replaced"))
+        probs = self.problems(text)
+        self.assertTrue(any("R1 has status replaced but no gene_id" in p for p in probs), probs)
+        self.assertTrue(any("(current without a gene); 3 in all" in p or "more rows" in p for p in probs), probs)
+
+    def test_a_late_problem_is_not_hidden_behind_early_ones(self):
+        text = HEAD + "".join(row(f"S{i}", "homo_sapiens", "fine") for i in range(500)) + row("Z", "danio_rerio", "current", gene="G", official="HGNC:5")
+        probs = self.problems(text)
+        self.assertTrue(any("'HGNC:5' is not an official ID of danio_rerio" in p for p in probs), probs)
 
     def test_through_validate_and_the_command_line(self):
         f = write(self.root / "x" / "reference_names.tsv", TREEFAM)

@@ -30,14 +30,16 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from .schemas import MAX_PROBLEMS
 
 FILE = "reference_names.tsv"
 HEADER = ["protein_id", "species", "status", "route", "mapped_protein", "transcript_id", "gene_id", "symbol", "symbol_source",
           "official_id", "description"]
 STATUSES = ("current", "grch37", "legacy_id", "replaced", "legacy_symbol", "unmapped")
 RELIABLE = ("current", "grch37", "legacy_id")
-HAS_GENE = ("current", "grch37", "legacy_id", "replaced")           # a mapped protein has a gene
+HAS_GENE = ("current", "grch37", "replaced")     # resolved through Ensembl: the protein has a gene
+# legacy_id: resolved through the 2018 tables to an authority record (HGNC, ZFIN or MGI), which may have no Ensembl gene:
+# such a row needs a gene_id or an official_id
+EXAMPLES = 2                                       # examples of each kind of problem that the validator reports
 SPECIES = ("homo_sapiens", "mus_musculus", "danio_rerio")
 ID_PATTERNS = {"homo_sapiens": re.compile(r"^HGNC:\d+$"), "mus_musculus": re.compile(r"^MGI:\d+$"),
                "danio_rerio": re.compile(r"^ZDB-[A-Z0-9]+-\d{6}-\d+$")}
@@ -128,8 +130,16 @@ class ReferenceNames:
 
 def validate_reference_names(path):
     """Problems with a reference_names.tsv: the header, repeated proteins, an unknown species or status, an official ID that is not an
-    HGNC, MGI or ZFIN ID of the right species, and a mapped protein with no gene."""
-    problems = []
+    HGNC, MGI or ZFIN ID of the right species, a protein resolved through Ensembl with no gene, and a protein resolved through the 2018
+    tables with neither a gene nor an official ID. The whole file is read; for each kind of problem the first EXAMPLES are given and
+    then a count, so that one run shows everything."""
+    kinds = {}                                           # kind -> [count, [examples]]
+
+    def add(kind, message):
+        entry = kinds.setdefault(kind, [0, []])
+        entry[0] += 1
+        if len(entry[1]) < EXAMPLES:
+            entry[1].append(message)
     try:
         fh = open(path, encoding="utf-8")
     except OSError as e:
@@ -145,24 +155,30 @@ def validate_reference_names(path):
                 continue
             f = line.split("\t")
             if len(f) != len(HEADER):
-                problems.append(f"line {n}: expected {len(HEADER)} columns, found {len(f)}")
+                add("columns", f"line {n}: expected {len(HEADER)} columns, found {len(f)}")
             else:
                 r = dict(zip(HEADER, f))
                 if not r["protein_id"]:
-                    problems.append(f"line {n}: protein_id is empty")
+                    add("empty protein_id", f"line {n}: protein_id is empty")
                 elif r["protein_id"] in seen:
-                    problems.append(f"line {n}: {r['protein_id']} appears twice")
+                    add("repeated protein", f"line {n}: {r['protein_id']} appears twice")
                 seen.add(r["protein_id"])
                 if r["species"] not in SPECIES:
-                    problems.append(f"line {n}: species {r['species']!r} must be one of {', '.join(SPECIES)}")
+                    add("unknown species", f"line {n}: species {r['species']!r} must be one of {', '.join(SPECIES)}")
                 elif r["official_id"] and not ID_PATTERNS[r["species"]].match(r["official_id"]):
-                    problems.append(f"line {n}: {r['official_id']!r} is not an official ID of {r['species']}")
+                    add(f"official ID of {r['species']}", f"line {n}: {r['official_id']!r} is not an official ID of {r['species']}")
                 if r["status"] not in STATUSES:
-                    problems.append(f"line {n}: status {r['status']!r} must be one of {', '.join(STATUSES)}")
+                    add("unknown status", f"line {n}: status {r['status']!r} must be one of {', '.join(STATUSES)}")
                 elif r["status"] in HAS_GENE and not r["gene_id"]:
-                    problems.append(f"line {n}: {r['protein_id']} has status {r['status']} but no gene_id")
-            if len(problems) >= MAX_PROBLEMS:
-                return problems + ["(stopping after too many problems)"]
+                    add(f"{r['status']} without a gene", f"line {n}: {r['protein_id']} has status {r['status']} but no gene_id")
+                elif r["status"] == "legacy_id" and not r["gene_id"] and not r["official_id"]:
+                    add("legacy_id without a gene or an official ID",
+                        f"line {n}: {r['protein_id']} has status legacy_id but neither a gene_id nor an official_id")
+    problems = []
+    for kind, (count, examples) in kinds.items():
+        problems += examples
+        if count > len(examples):
+            problems.append(f"... and {count - len(examples)} more rows with this problem ({kind}); {count} in all")
     return problems
 
 
