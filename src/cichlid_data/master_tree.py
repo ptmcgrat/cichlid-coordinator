@@ -11,9 +11,12 @@ method's trees. The homology decider roots gene trees with it. Topology only: no
   * TreeFam 9's species tree (config/species_tree_treefam9.phy, from the TreeFam FTP archive) gives everything else
     (mammals, birds, invertebrates, ...). It is a taxonomy tree with polytomies and an older fish classification (it has no
     Ovalentaria), so its 8 fish are replaced by the agreed teleosts; its other clades are kept;
-  * the fish that only the Compara panel (or TreeFam) has are attached: a TreeFam fish next to its TreeFam relative, a
-    Compara fish at its ladder level, as an unresolved polytomy at that level's clade. Polytomies do little harm: the
-    tree only chooses the root of a gene tree, and duplications are called by species overlap.
+  * the fish that only the Compara panel (or TreeFam) has are placed by config/species_tree_placements.tsv: one row per
+    fish, with its published source and a support level. A placement is resolved only where a published phylogeny
+    supports it; where the published work disagrees or is silent, the fish joins an unresolved polytomy on purpose
+    (an invented resolution would turn a speciation into a duplication in the homology decider, which reconciles
+    gene trees with this tree). A fish with no row falls back to the older rule: next to its TreeFam relative, or as a
+    child of its ladder level's clade.
 
 The shark, gar, reedfish and amphioxus (not in TreeFam's tree) go where the agreed tree has them.
 `check()` tests the invariants: every species once, the agreed tree preserved, every ladder level a clade.
@@ -27,6 +30,11 @@ from .clades import LADDER, Clades
 from .config import config_dir
 
 FILE = "species_tree_master.nwk"
+PLACEMENTS_FILE = "species_tree_placements.tsv"
+PLACEMENT_COLUMNS = ["species", "op", "anchor", "group", "support", "source", "note"]
+PLACEMENT_OPS = ("sister_of", "join_group", "group_under", "child_of")
+SUPPORT = ("robust", "contested", "by_default")
+LABELS = ("Teleostei", "Percomorpha", "Ovalentaria", "Cichlidae")        # nodes that an anchor can name as @Label
 TREEFAM_FILE = "species_tree_treefam9.phy"
 AGREED_FILE = "species_tree_orthofinder.nwk"
 TELEOST_LEVELS = ("teleost", "percomorph", "ovalentaria", "cichlid")
@@ -115,6 +123,150 @@ def clade_sets(root, keep=None):
     return out
 
 
+# ------------------------------------------------------------------ placements
+def parse_placements(text):
+    """The text of species_tree_placements.tsv -> a list of dicts (comments and blank lines skipped)."""
+    rows, header = [], False
+    for n, line in enumerate(text.splitlines(), start=1):
+        if not line.strip() or line.startswith("#"):
+            continue
+        f = line.split("\t")
+        if not header:
+            if f != PLACEMENT_COLUMNS:
+                raise ValueError(f"{PLACEMENTS_FILE} line {n}: the header must be {', '.join(PLACEMENT_COLUMNS)}")
+            header = True
+            continue
+        if len(f) != len(PLACEMENT_COLUMNS):
+            raise ValueError(f"{PLACEMENTS_FILE} line {n}: expected {len(PLACEMENT_COLUMNS)} columns, found {len(f)}")
+        rows.append(dict(zip(PLACEMENT_COLUMNS, (x.strip() for x in f))))
+    if not header:
+        raise ValueError(f"{PLACEMENTS_FILE}: no header line")
+    return rows
+
+
+def load_placements(cfg=None):
+    path = Path(cfg or config_dir()) / PLACEMENTS_FILE
+    return parse_placements(path.read_text()) if path.is_file() else []
+
+
+def _anchor_tokens(anchor):
+    return [a.strip() for a in anchor.split(",") if a.strip()]
+
+
+def placement_problems(cfg=None):
+    """Problems with the placement table: its columns, the vocabulary, that each row is a fish missing from the agreed
+    tree, that its anchors exist when it is applied, and that groups are used consistently."""
+    cfg = Path(cfg or config_dir())
+    try:
+        rows = load_placements(cfg)
+    except ValueError as e:
+        return [str(e)]
+    agreed, _tf, wanted, clades, _ = sources(cfg)
+    in_agreed = _leafset(agreed)
+    extras = {sp for sp in wanted - in_agreed if clades.level(sp) in TELEOST_LEVELS}
+    problems, seen, known, group_anchor = [], set(), set(in_agreed), {}
+    for i, r in enumerate(rows, start=1):
+        tag = f"{PLACEMENTS_FILE} row {i} ({r['species']})"
+        sp, op = r["species"], r["op"]
+        if sp in seen:
+            problems.append(f"{tag}: the species appears twice")
+        elif sp not in extras:
+            problems.append(f"{tag}: not a fish that is missing from the agreed tree (the agreed tree cannot be changed)")
+        if op not in PLACEMENT_OPS:
+            problems.append(f"{tag}: op {op!r} must be one of {', '.join(PLACEMENT_OPS)}")
+        if r["support"] not in SUPPORT:
+            problems.append(f"{tag}: support {r['support']!r} must be one of {', '.join(SUPPORT)}")
+        if not r["source"]:
+            problems.append(f"{tag}: no source")
+        tokens = _anchor_tokens(r["anchor"])
+        if not tokens:
+            problems.append(f"{tag}: no anchor")
+        for t in tokens:
+            if t.startswith("@"):
+                if t[1:] not in LABELS:
+                    problems.append(f"{tag}: anchor {t} must be one of {', '.join('@' + x for x in LABELS)}")
+            elif t not in known:
+                problems.append(f"{tag}: anchor {t} is not in the agreed tree or placed by an earlier row")
+        if op in ("join_group", "group_under") and not r["group"]:
+            problems.append(f"{tag}: {op} needs a group name")
+        if op == "child_of" and r["group"]:
+            problems.append(f"{tag}: child_of makes no new node, so it takes no group name")
+        if op in ("join_group", "group_under") and r["group"]:
+            if group_anchor.setdefault(r["group"], (op, r["anchor"])) != (op, r["anchor"]) and op == "group_under":
+                problems.append(f"{tag}: group {r['group']} is anchored differently by an earlier row")
+        seen.add(sp)
+        known.add(sp)
+    return problems
+
+
+def _anchor_node(root, labels, anchor, where):
+    if anchor.startswith("@"):
+        if anchor[1:] not in labels:
+            raise ValueError(f"{where}: unknown anchor {anchor}")
+        return labels[anchor[1:]]
+    names = _anchor_tokens(anchor)
+    missing = [x for x in names if x not in _leafset(root)]
+    if missing or not names:
+        raise ValueError(f"{where}: anchor species not in the tree: {', '.join(missing) or '(none given)'}")
+    return _mrca(root, names)
+
+
+def apply_placements(root, labels, rows):
+    """Place each row's fish in `root` (modified in place), in order. `labels` maps a label to a node, for @Label anchors.
+    -> the set of species placed."""
+    placed, groups, present = set(), {}, _leafset(root)
+    for i, r in enumerate(rows, start=1):
+        where = f"{PLACEMENTS_FILE} row {i} ({r['species']})"
+        sp, op, group = r["species"], r["op"], r["group"]
+        if sp in present:
+            raise ValueError(f"{where}: the species is already in the tree")
+        anchor = _anchor_node(root, labels, r["anchor"], where)
+        leaf = newick.Node(sp)
+        if op == "sister_of":
+            if anchor.parent is None:
+                raise ValueError(f"{where}: cannot be the sister of the root")
+            pair = newick.Node(group)
+            _replace(anchor, pair)
+            pair.add(anchor)
+            pair.add(leaf)
+        elif op == "join_group":
+            if group in groups:
+                if anchor.parent is not groups[group]:
+                    raise ValueError(f"{where}: its anchor is not inside group {group}")
+                groups[group].add(leaf)
+            else:
+                if anchor.parent is None:
+                    raise ValueError(f"{where}: cannot group with the root")
+                g = newick.Node(group)
+                _replace(anchor, g)
+                g.add(anchor)
+                g.add(leaf)
+                groups[group] = g
+        elif op == "group_under":
+            if group in groups:
+                if groups[group].parent is not anchor:
+                    raise ValueError(f"{where}: group {group} hangs under a different node")
+                groups[group].add(leaf)
+            else:
+                g = newick.Node(group)
+                g.add(leaf)
+                anchor.add(g)
+                groups[group] = g
+        elif op == "child_of":
+            anchor.add(leaf)
+        else:
+            raise ValueError(f"{where}: unknown op {op!r}")
+        present.add(sp)
+        placed.add(sp)
+    return placed
+
+
+def polytomies(tree):
+    """-> [(name, number of children, leaf set)] for every node with more than two children, largest first."""
+    out = [(n.name, len(n.children), frozenset(_leafset(n))) for n in tree.iter() if len(n.children) > 2]
+    return sorted(out, key=lambda t: (-len(t[2]), t[0]))
+
+
 # ------------------------------------------------------------------ sources and build
 def sources(cfg=None):
     """-> (agreed tree, TreeFam tree, the species that must be leaves, clade table, prefix -> species name).
@@ -147,10 +299,18 @@ def build(cfg=None):
         node_of[lv] = _mrca(teleosts, members)
         node_of[lv].name = label
 
-    # 2. the fish that are not in the agreed tree
+    # 2. the fish that are not in the agreed tree: placed by the table, else by the older rule
     extras = sorted(s for s in wanted - in_agreed if level(s) in TELEOST_LEVELS)
+    problems = placement_problems(cfg)
+    if problems:
+        raise ValueError("the placement table is not valid: " + "; ".join(problems[:3]))
+    labels = {"Teleostei": teleosts, "Percomorpha": node_of["percomorph"], "Ovalentaria": node_of["ovalentaria"],
+              "Cichlidae": node_of["cichlid"]}
+    placed = apply_placements(teleosts, labels, load_placements(cfg))
     tf_leaf = {l.name: l for l in tf.leaves()}
     for sp in extras:
+        if sp in placed:
+            continue
         if sp in tf_leaf:                      # a TreeFam fish: next to its relatives in TreeFam's tree
             anc = tf_leaf[sp].parent
             while not (_leafset(anc) & in_agreed):
@@ -201,6 +361,12 @@ def check(tree, cfg=None):
         problems.append(f"the root has {len(tree.children)} children; it must be rooted (two)")
     if any(len(n.children) == 1 for n in tree.iter()):
         problems.append("the tree has a node with a single child")
+    problems += placement_problems(cfg)
+    fish = next((n for n in tree.iter() if n.name == "Teleostei"), None)         # names are looked up inside the fish clade;
+    names = [n.name for n in fish.iter() if n.children and n.name] if fish else []      # TreeFam's own names elsewhere are not ours
+    twice = sorted({x for x in names if names.count(x) > 1})
+    if twice:
+        problems.append(f"internal node names in the fish clade that appear twice: {', '.join(twice)}")
     agreed_species = _leafset(agreed)
     if not agreed_species <= ls:
         problems.append("the agreed OrthoFinder species are not all in the tree")

@@ -34,7 +34,7 @@ cichlid-data push results/v1/Compara/orthology
 cichlid-data migrate              # dry run of moving the inputs to the new layout; --apply to do it
 ```
 
-## Status (v0.14.1)
+## Status (v0.14.2)
 
 Feature-complete against `docs/coordinator_spec.md`: configuration, layout, data units, transfers
 (fingerprints, conflict detection, immutable units, locks, transfer log), the layout migration
@@ -47,7 +47,7 @@ New in 0.9.0: releases. One release number (`v1`, `v2`, ...) is shared by every 
 tree). Results live under `Results/<release>/<part>/` (`Layout.results(release, part)`), and
 `cichlid-data release freeze` archives a release's proteomes, catalog and species trees in
 `Releases/<release>/`, which never changes; `check` reports drift from it. `run.json` and `done.json`
-carry the release. 0.14.1: the names validator accepts `legacy_id` rows with no Ensembl gene and reports every kind of problem with a count. 0.14.0: `ReferenceNames` (the names and HGNC/ZFIN IDs of TreeFam's and Compara's reference proteins). 0.13.0: `LeafSpecies` (the species of a leaf of a family tree; shadowed species). 0.12.0: the master species tree (`master_tree`: built from the agreed OrthoFinder tree and TreeFam's species tree, every ladder level a clade). 0.11.0: `config/species_clades.tsv`, the clade ladder (`Clades`), validated against the catalog, the Compara panel and the OrthoFinder species tree; the homology decider's sheet. 0.10.0: `residue_map.tsv` is a schema, `tree_mode` is validated, and runs record `proteomes_md5` (the proteomes they used), which `release validate` compares with a frozen release; the `newick` tests are in the suite. 0.9.2: a family's `stage5/` scratch folder is no longer pushed. 0.9.1 moves `export_seurat.R` (the Daniocell export step) into the package. Earlier (0.8.0): the family contract (`schemas.validate_family`), the OrthoFinder
+carry the release. 0.14.2: the master tree's fish polytomies are resolved where a published phylogeny supports it (config/species_tree_placements.tsv). 0.14.1: the names validator accepts `legacy_id` rows with no Ensembl gene and reports every kind of problem with a count. 0.14.0: `ReferenceNames` (the names and HGNC/ZFIN IDs of TreeFam's and Compara's reference proteins). 0.13.0: `LeafSpecies` (the species of a leaf of a family tree; shadowed species). 0.12.0: the master species tree (`master_tree`: built from the agreed OrthoFinder tree and TreeFam's species tree, every ladder level a clade). 0.11.0: `config/species_clades.tsv`, the clade ladder (`Clades`), validated against the catalog, the Compara panel and the OrthoFinder species tree; the homology decider's sheet. 0.10.0: `residue_map.tsv` is a schema, `tree_mode` is validated, and runs record `proteomes_md5` (the proteomes they used), which `release validate` compares with a frozen release; the `newick` tests are in the suite. 0.9.2: a family's `stage5/` scratch folder is no longer pushed. 0.9.1 moves `export_seurat.R` (the Daniocell export step) into the package. Earlier (0.8.0): the family contract (`schemas.validate_family`), the OrthoFinder
 species tree as configuration, `native/`, and `Catalog.md5()`. Instruction sheets for the repositories
 that use the coordinator are in `docs/` (`orthofinder_repo_spec.md`, `trees_repo_spec.md`).
 

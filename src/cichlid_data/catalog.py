@@ -222,7 +222,7 @@ class Catalog:
             s.used_by = [f"{rel}/{part}" for rel, r in releases.items() for part, m in r["parts"].items()
                          if p in m["species"]]
         files = ["species_sets.toml", "releases.toml", "species.tsv", "compara_panel.tsv", "species_clades.tsv",
-                 "species_tree_treefam9.phy", "species_tree_master.nwk"] + sorted(
+                 "species_tree_treefam9.phy", "species_tree_master.nwk", "species_tree_placements.tsv"] + sorted(
             {m["species_tree"] for r in releases.values() for m in r["parts"].values() if m.get("species_tree")})
         meta = {"catalog_version": CATALOG_VERSION, "built": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "built_by": f"cichlid-data {__version__}",

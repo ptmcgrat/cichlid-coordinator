@@ -1,0 +1,41 @@
+# Where the fish that are NOT in the agreed OrthoFinder tree go in the master species tree (config/species_tree_master.nwk).
+# Read by `cichlid_data.master_tree.build()`; one row per fish, applied in the order of this file (an anchor may be a fish placed earlier).
+# A fish with no row falls back to the older rule: next to its TreeFam relative, or as a child of its ladder level's clade.
+# The agreed tree is never changed: pruned to its 35 species the master equals it (checked).
+#
+# op:      sister_of    new node (anchor, species) in the place of the anchor clade; `group` optionally names the new node
+#          join_group   the species joins the group node `group`; the first member creates it in the place of the anchor clade,
+#                       with the anchor inside it, so the group is (anchor, member, member, ...), an unresolved polytomy
+#          group_under  the species joins the group node `group`; the first member creates it as an extra child of the anchor
+#          child_of     the species is an extra child of the anchor node (a polytomy there)
+# anchor:  species (comma-separated: their last common ancestor), or @Teleostei, @Percomorpha, @Ovalentaria, @Cichlidae
+# support: robust       the placement is supported by the published work cited
+#          contested    published phylogenies disagree, so the relationships are deliberately left unresolved (a polytomy)
+#          by_default   the sources used do not resolve it; left unresolved
+# A relationship that is in doubt is NEVER resolved to make the tree look tidier: an invented resolution would make
+# a speciation look like a duplication, or the reverse, in the homology decider.
+# Family and order membership below is from the classification of Betancur-R et al. 2017 (BMC Evol Biol 17:162,
+# doi 10.1186/s12862-017-0958-3); membership marked "to confirm" is standard taxonomy that was not read in the paper itself.
+species	op	anchor	group	support	source	note
+denticeps_clupeoides	sister_of	clupea_harengus	Clupeiformes	robust	Mol Phylogenet Evol 175:107590 (2022), exon-capture phylogeny of the Clupeiformes; Di Dario and de Pinna 2006, Papeis Avulsos de Zoologia 46(10)	Denticeps (Denticipitidae) is sister to all other clupeiforms, here represented by Clupea
+ictalurus_punctatus	join_group	astyanax_mexicanus	Characiphysi	contested	BMC Evol Biol 11:177 (2011), doi 10.1186/1471-2148-11-177; PMID 23888847; Fink and Fink 1981, Zool J Linn Soc	Catfish (Siluriformes), tetras (Characiformes) and electric eels (Gymnotiformes) form Characiphysi, with zebrafish (Cypriniformes) basal in Otophysi. Their order differs among the three studies, so they stay a polytomy
+electrophorus_electricus	join_group	astyanax_mexicanus	Characiphysi	contested	BMC Evol Biol 11:177 (2011), doi 10.1186/1471-2148-11-177; PMID 23888847; Fink and Fink 1981, Zool J Linn Soc	See ictalurus_punctatus
+myripristis_murdjan	sister_of	@Percomorpha		robust	PNAS 110:12738 (2013; Near et al., authors to confirm); Dornburg et al. 2017, Mol Phylogenet Evol (anchored hybrid enrichment); bioRxiv 10.1101/2024.09.30.615987	Squirrelfishes and soldierfishes are in the clade that is sister to Percomorpha. Which beryciform lineage is the exact sister is still debated (2024 preprint), but with no other beryciform in the tree Myripristis is the sister of Percomorpha either way, and the cod (Paracanthopterygii) is outside both. Ladder level stays teleost
+anabas_testudineus	sister_of	betta_splendens	Anabantiformes	robust	Betancur-R et al. 2017, BMC Evol Biol 17:162	Anabas and Betta are labyrinth fishes (Anabantiformes); membership to confirm
+mastacembelus_armatus	sister_of	betta_splendens,anabas_testudineus	Anabantaria	robust	Betancur-R et al. 2017, BMC Evol Biol 17:162	Anabantaria is a robust series of Synbranchiformes plus Anabantiformes; the spiny eels (Mastacembelidae) are Synbranchiformes (to confirm)
+sparus_aurata	join_group	gasterosteus_aculeatus,takifugu_rubripes	Eupercaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162	Eupercaria is a robust series (it holds Perciformes, which includes the sticklebacks, and Tetraodontiformes, which includes the pufferfishes) but its internal order is an unresolved bush; Sparidae are Spariformes (to confirm)
+dicentrarchus_labrax	join_group	gasterosteus_aculeatus,takifugu_rubripes	Eupercaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162	Moronidae are Eupercaria of uncertain order
+labrus_bergylta	join_group	gasterosteus_aculeatus,takifugu_rubripes	Eupercaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162	Labridae are Labriformes (to confirm)
+larimichthys_crocea	join_group	gasterosteus_aculeatus,takifugu_rubripes	Eupercaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162	Sciaenidae are in Eupercaria
+sander_lucioperca	join_group	gasterosteus_aculeatus,takifugu_rubripes	Eupercaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162	Percidae are Perciformes (to confirm)
+cottoperca_gobio	join_group	gasterosteus_aculeatus,takifugu_rubripes	Eupercaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162	Notothenioidei are in Perciformes (to confirm)
+cyclopterus_lumpus	join_group	gasterosteus_aculeatus,takifugu_rubripes	Eupercaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162	Cyclopteridae are in Perciformes (to confirm)
+seriola_dumerili	group_under	@Percomorpha	Carangaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162	Carangiformes are in the series Carangaria (to confirm); the order inside Carangaria and its place among the percomorph series are left open
+scophthalmus_maximus	group_under	@Percomorpha	Carangaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162	Pleuronectiformes are in the series Carangaria (to confirm)
+lates_calcarifer	group_under	@Percomorpha	Carangaria	contested	Betancur-R et al. 2017, BMC Evol Biol 17:162; FishBase classification (Latidae in Carangaria)	Latidae are in Carangaria, of uncertain order
+hippocampus_comes	child_of	@Percomorpha		by_default	Betancur-R et al. 2017, BMC Evol Biol 17:162	Seahorses are Syngnatharia; the place of this series among the others is not resolved in the sources used
+acanthochromis_polyacanthus	sister_of	amphiprion_ocellaris	Pomacentridae	robust	to confirm (monophyly of the damselfishes and clownfishes, Pomacentridae)	Acanthochromis and Amphiprion are both Pomacentridae
+kryptolebias_marmoratus	sister_of	nothobranchius_furzeri	Aplocheiloidei	robust	to confirm (monophyly of the suborder Aplocheiloidei)	Kryptolebias (Rivulidae) and Nothobranchius are both Aplocheiloidei; the agreed tree already puts Nothobranchius outside the other killifishes
+cyprinodon_variegatus	child_of	fundulus_heteroclitus,poecilia_reticulata		by_default	to confirm	Cyprinodon is a Cyprinodontoidei; its place among the killifish and the poeciliids is left open
+amphilophus_citrinellus	sister_of	archocentrus_centrarchus	Cichlinae	robust	Lopez-Fernandez et al. 2010, Mol Phylogenet Evol (Neotropical cichlids, Cichlinae, are monophyletic); Concheiro Perez et al. 2007, Mol Phylogenet Evol 43:91 (both are amphilophines)	Relationships inside the amphilophines are unresolved, but with only two Neotropical cichlids in the tree they form the clade
+pundamilia_nyererei	child_of	haplochromis_burtoni,maylandia_zebra		contested	Brawand et al. 2014, Nature 513:375, Fig. 1	In the published tree the Lake Malawi lineage, Astatotilapia burtoni, the riverine Astatotilapia and the Lake Victoria region lineages share one unresolved node; so Pundamilia is a third child of the node of Haplochromis, Maylandia and Astatotilapia calliptera
